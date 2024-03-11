@@ -259,10 +259,10 @@ std::unique_ptr<rtde_interface::DataPackage> urcl::UrDriver::getDataPackage()
   return rtde_client_->getDataPackage(timeout);
 }
 
-bool UrDriver::writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
+bool UrDriver::writeJointCommand(const vector6d_t& values, const vector3d_t& gravity, const comm::ControlMode control_mode,
                                  const RobotReceiveTimeout& robot_receive_timeout)
 {
-  return reverse_interface_->write(&values, control_mode, robot_receive_timeout);
+  return reverse_interface_->write(&values, &gravity, control_mode, robot_receive_timeout);
 }
 
 bool UrDriver::writeTrajectoryPoint(const vector6d_t& positions, const bool cartesian, const float goal_time,
@@ -476,10 +476,10 @@ bool UrDriver::endToolContact()
   }
 }
 
-bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
+bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout, const vector3d_t& gravity)
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, comm::ControlMode::MODE_IDLE, robot_receive_timeout);
+  return reverse_interface_->write(fake, &gravity, comm::ControlMode::MODE_IDLE, robot_receive_timeout);
 }
 
 void UrDriver::startRTDECommunication()
@@ -490,7 +490,8 @@ void UrDriver::startRTDECommunication()
 bool UrDriver::stopControl()
 {
   vector6d_t* fake = nullptr;
-  return reverse_interface_->write(fake, comm::ControlMode::MODE_STOPPED);
+  const vector3d_t fake_gravity = {0.0, 0.0, 0.0};
+  return reverse_interface_->write(fake, &fake_gravity, comm::ControlMode::MODE_STOPPED);
 }
 
 std::string UrDriver::readScriptFile(const std::string& filename)

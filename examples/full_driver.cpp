@@ -153,7 +153,8 @@ int main(int argc, char* argv[])
       g_joint_positions[5] += increment;
       // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
       // reliable on non-realtime systems. Use with caution in productive applications.
-      bool ret = g_my_driver->writeJointCommand(g_joint_positions, comm::ControlMode::MODE_SERVOJ,
+      const vector3d_t& gravity = {0.0, 0.0, 0.0};
+      bool ret = g_my_driver->writeJointCommand(g_joint_positions, gravity, comm::ControlMode::MODE_SERVOJ,
                                                 RobotReceiveTimeout::millisec(100));
       if (!ret)
       {

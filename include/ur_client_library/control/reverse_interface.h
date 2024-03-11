@@ -100,7 +100,7 @@ public:
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
+  virtual bool write(const vector6d_t* positions, const vector3d_t* gravity, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
                      const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
