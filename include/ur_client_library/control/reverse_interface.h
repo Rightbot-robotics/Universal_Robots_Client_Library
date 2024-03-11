@@ -159,7 +159,7 @@ protected:
     return s;
   }
 
-  static const int MAX_MESSAGE_LENGTH = 8;
+  static const int MAX_MESSAGE_LENGTH = 8+3;
 
   std::function<void(bool)> handle_program_state_;
   std::chrono::milliseconds step_time_;

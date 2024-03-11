@@ -53,7 +53,7 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
 bool ReverseInterface::write(const vector6d_t* positions, const vector3d_t* gravity, const comm::ControlMode control_mode,
                              const RobotReceiveTimeout& robot_receive_timeout)
 {
-  const int message_length = 7;
+  const int message_length = 7+3;
   if (client_fd_ == -1)
   {
     return false;
@@ -95,13 +95,6 @@ bool ReverseInterface::write(const vector6d_t* positions, const vector3d_t* grav
     b_pos += 6 * sizeof(int32_t);
   }
 
-  // writing zeros to allow usage with other script commands
-  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
-  {
-    val = htobe32(0);
-    b_pos += append(b_pos, val);
-  }
-
   val = htobe32(toUnderlying(control_mode));
   b_pos += append(b_pos, val);
 
@@ -121,7 +114,14 @@ bool ReverseInterface::write(const vector6d_t* positions, const vector3d_t* grav
       for (int i : {0, 0, 0})
         b_pos += append(b_pos, val);
     }
-    
+
+    // writing zeros to allow usage with other script commands
+    for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
+    {
+      val = htobe32(0);
+      b_pos += append(b_pos, val);
+    }
+
   size_t written;
 
   return server_.write(client_fd_, buffer, sizeof(buffer), written);

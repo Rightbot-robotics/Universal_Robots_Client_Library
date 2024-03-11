@@ -536,7 +536,7 @@ while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
-    cmd_gravity = [params[9] / MULT_jointstate, params[10] / MULT_jointstate, params[11] / MULT_jointstate]
+    cmd_gravity = [params_mult[9] / MULT_jointstate, params_mult[10] / MULT_jointstate, params_mult[11] / MULT_jointstate]
     # Convert to read timeout from milliseconds to seconds
     read_timeout = params_mult[1] / 1000.0 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:
