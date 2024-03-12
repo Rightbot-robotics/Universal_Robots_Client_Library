@@ -155,9 +155,8 @@ int main(int argc, char* argv[])
     {
       // Setting the RobotReceiveTimeout time is for example purposes only. This will make the example running more
       // reliable on non-realtime systems. Use with caution in productive applications.
-      const vector3d_t& gravity = {0.0, 0.0, 0.0};
       bool ret =
-          g_my_driver->writeJointCommand(tcp_speed, gravity, comm::ControlMode::MODE_SPEEDL, RobotReceiveTimeout::millisec(100));
+          g_my_driver->writeJointCommand(tcp_speed, comm::ControlMode::MODE_SPEEDL, RobotReceiveTimeout::millisec(100));
       if (!ret)
       {
         URCL_LOG_ERROR("Could not send joint command. Is the robot in remote control?");

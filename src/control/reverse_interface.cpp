@@ -50,10 +50,10 @@ ReverseInterface::ReverseInterface(uint32_t port, std::function<void(bool)> hand
   server_.start();
 }
 
-bool ReverseInterface::write(const vector6d_t* positions, const vector3d_t* gravity, const comm::ControlMode control_mode,
+bool ReverseInterface::write(const vector6d_t* positions, const comm::ControlMode control_mode,
                              const RobotReceiveTimeout& robot_receive_timeout)
 {
-  const int message_length = 7+3;
+  const int message_length = 7;
   if (client_fd_ == -1)
   {
     return false;
@@ -95,32 +95,15 @@ bool ReverseInterface::write(const vector6d_t* positions, const vector3d_t* grav
     b_pos += 6 * sizeof(int32_t);
   }
 
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+
   val = htobe32(toUnderlying(control_mode));
   b_pos += append(b_pos, val);
-
-  if (gravity != nullptr)
-    {
-      for (auto const &value : *gravity)
-      {
-        int32_t val = static_cast<int32_t>(value * MULT_JOINTSTATE);
-        val = htobe32(val);
-        b_pos += append(b_pos, val);
-      }
-    }
-    else
-    {
-      int32_t val = 0;
-      val = htobe32(val);
-      for (int i : {0, 0, 0})
-        b_pos += append(b_pos, val);
-    }
-
-    // writing zeros to allow usage with other script commands
-    for (size_t i = message_length; i < MAX_MESSAGE_LENGTH - 1; i++)
-    {
-      val = htobe32(0);
-      b_pos += append(b_pos, val);
-    }
 
   size_t written;
 

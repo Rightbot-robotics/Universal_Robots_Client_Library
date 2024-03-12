@@ -26,7 +26,7 @@ MODE_POSE = 5
 MODE_FREEDRIVE = 6
 MODE_TOOL_IN_CONTACT = 7
 # Data dimensions of the message received on the reverse interface
-REVERSE_INTERFACE_DATA_DIMENSION = 8+3
+REVERSE_INTERFACE_DATA_DIMENSION = 8
 
 TRAJECTORY_MODE_RECEIVE = 1
 TRAJECTORY_MODE_CANCEL = -1
@@ -64,7 +64,6 @@ global cmd_servo_qd = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global cmd_servo_q = get_actual_joint_positions()
 global cmd_servo_q_last = get_actual_joint_positions()
 global cmd_twist = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-global cmd_gravity = [0.0, 0.0, 0.0]
 global extrapolate_count = 0
 global extrapolate_max_count = 0
 global control_mode = MODE_UNINITIALIZED
@@ -142,22 +141,6 @@ thread speedThread():
   end
   textmsg("ExternalControl: speedj thread ended")
   stopj(STOPJ_ACCELERATION)
-end
-
-def validate_gravity(gravity):
-  valid = True
-  valid = valid and (gravity[0] > 0 or gravity[1] > 0 or gravity [2] > 0)
-  valid = valid and (gravity[0] < 10 and gravity[1] < 10 and gravity [2] < 10)
-  return valid
-end
-
-thread gravityThread():
-  textmsg("Starting Gravity Thread")
-  while True:
-    if validate_gravity(cmd_gravity):
-      set_gravity(cmd_gravity)
-    sync()
-  end
 end
 
 def cubicSplineRun(end_q, end_qd, time, last_point=False):
@@ -523,20 +506,15 @@ force_mode_set_gain_scaling({{FORCE_MODE_SET_GAIN_SCALING_REPLACE}})
 
 control_mode = MODE_UNINITIALIZED
 thread_move = 0
-thread_gravity = 0
 thread_trajectory = 0
 trajectory_points_left = 0
 textmsg("ExternalControl: External control active")
 global read_timeout = 0.0 # First read is blocking
 thread_script_commands = run script_commands()
-
-thread_gravity = run gravityThread()
-
 while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
   if params_mult[0] > 0:
-    cmd_gravity = [params_mult[9] / MULT_jointstate, params_mult[10] / MULT_jointstate, params_mult[11] / MULT_jointstate]
     # Convert to read timeout from milliseconds to seconds
     read_timeout = params_mult[1] / 1000.0 
     if control_mode != params_mult[REVERSE_INTERFACE_DATA_DIMENSION]:

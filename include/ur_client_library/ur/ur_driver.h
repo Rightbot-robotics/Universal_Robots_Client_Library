@@ -211,7 +211,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeJointCommand(const vector6d_t& values, const vector3d_t& gravity, const comm::ControlMode control_mode,
+  bool writeJointCommand(const vector6d_t& values, const comm::ControlMode control_mode,
                          const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
@@ -381,7 +381,7 @@ public:
    *
    * \returns True on successful write.
    */
-  bool writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(1000), const urcl::vector3d_t& gravity = {0.0, 0.0, 0.0});
+  bool writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(1000));
 
   /*!
    * \brief Starts the RTDE communication.

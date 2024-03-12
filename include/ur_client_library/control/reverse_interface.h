@@ -100,7 +100,7 @@ public:
    *
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  virtual bool write(const vector6d_t* positions, const vector3d_t* gravity, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
+  virtual bool write(const vector6d_t* positions, const comm::ControlMode control_mode = comm::ControlMode::MODE_IDLE,
                      const RobotReceiveTimeout& robot_receive_timeout = RobotReceiveTimeout::millisec(20));
 
   /*!
@@ -159,7 +159,7 @@ protected:
     return s;
   }
 
-  static const int MAX_MESSAGE_LENGTH = 8+3;
+  static const int MAX_MESSAGE_LENGTH = 8;
 
   std::function<void(bool)> handle_program_state_;
   std::chrono::milliseconds step_time_;
