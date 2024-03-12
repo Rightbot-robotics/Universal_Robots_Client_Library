@@ -493,7 +493,7 @@ thread script_commands():
       elif command == SET_GRAVITY:
         gravity = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate]
         set_gravity(gravity)
-        textmsg("Setting gravity successful...")
+        textmsg("ExternalControl: Setting gravity: ", gravity)
       end
     end
   end
