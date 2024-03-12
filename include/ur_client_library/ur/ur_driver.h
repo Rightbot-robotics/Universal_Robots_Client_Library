@@ -370,6 +370,17 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set the direction of the acceleration experienced by the robot. When the robot mounting is fixed, this
+   * corresponds to an accleration of g away from the earth’s centre
+   *
+   * \param gravity  A vector [gravity_x, gravity_y, gravity_z] 3D vector, describing the direction of the gravity,
+   * relative to the base of the robot
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool setGravity(const vector3d_t& gravity);
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still
