@@ -370,6 +370,13 @@ public:
   bool endToolContact();
 
   /*!
+   * \brief Set the tool contact result callback object
+   *
+   * \param callback Callback function that will be triggered when the robot enters tool contact
+   */
+  void setToolContactResultCallback(std::function<void(control::ToolContactResult)> callback);
+
+  /*!
    * \brief Set the direction of the acceleration experienced by the robot. When the robot mounting is fixed, this
    * corresponds to an accleration of g away from the earth’s centre
    *
