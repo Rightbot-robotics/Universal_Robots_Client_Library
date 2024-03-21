@@ -75,7 +75,7 @@ global logging_counter = 0
 global curr_gravity_vector = [0.0, 0.0, 9.82]
 global gravity_is_set = False
 global dynamic_payload_first_pass = True
-global prev_tcp_speed = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global prev_tcp_speed = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 # Global thread variables
 thread_move = 0
@@ -470,7 +470,13 @@ def dynamic_payload_setting():
   logging_counter = logging_counter + 1
   curr_tcp_force = get_tcp_force()
   curr_tcp_speed = get_actual_tcp_speed()
-  curr_tcp_accel = (curr_tcp_speed - prev_tcp_speed) / get_steptime()
+  curr_tcp_accel = pose_sub(curr_tcp_speed, prev_tcp_speed)
+  i = 0
+  while i < 6:
+    curr_tcp_accel[i] = curr_tcp_accel[i] / get_steptime()
+    i = i + 1
+  end
+  linear_accel = [curr_tcp_accel[0], curr_tcp_accel[1], curr_tcp_accel[2]]
   prev_tcp_speed = curr_tcp_speed
   if logging_counter % 500 == 0:
     textmsg("Current tcp force: ", curr_tcp_force)
