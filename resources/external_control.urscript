@@ -71,6 +71,11 @@ global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
 global last_spline_qdd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
+global logging_counter = 0
+global curr_gravity_vector = [0.0, 0.0, 9.82]
+global gravity_is_set = False
+global dynamic_payload_first_pass = True
+global prev_tcp_speed = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 # Global thread variables
 thread_move = 0
@@ -458,6 +463,23 @@ def tool_contact_detection():
   end
 end
 
+def dynamic_payload_setting():
+  if dynamic_payload_first_pass:
+    prev_tcp_speed = get_actual_tcp_speed()
+  end
+  logging_counter = logging_counter + 1
+  curr_tcp_force = get_tcp_force()
+  curr_tcp_speed = get_actual_tcp_speed()
+  curr_tcp_accel = (curr_tcp_speed - prev_tcp_speed) / get_steptime()
+  prev_tcp_speed = curr_tcp_speed
+  if logging_counter % 500 == 0:
+    textmsg("Current tcp force: ", curr_tcp_force)
+    textmsg("Current tcp accel: ", curr_tcp_accel)
+    textmsg("Step time: ", get_steptime())
+    logging_counter = 0
+  end
+end
+
 # Thread to receive one shot script commands, the commands shouldn't be blocking
 thread script_commands():
   while control_mode > MODE_STOPPED:
@@ -492,6 +514,7 @@ thread script_commands():
         tool_contact_running = False
       elif command == SET_GRAVITY:
         gravity = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate]
+        curr_gravity_vector = gravity
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
       end
@@ -597,6 +620,7 @@ while control_mode > MODE_STOPPED:
     if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
       tool_contact_detection()
     end
+    dynamic_payload_setting()
   else:
     textmsg("Socket timed out waiting for command on reverse_socket. The script will exit now.")
     control_mode = MODE_STOPPED
