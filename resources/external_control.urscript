@@ -471,19 +471,15 @@ def dynamic_payload_setting():
   curr_tcp_force = get_tcp_force()
   curr_tcp_speed = get_actual_tcp_speed()
   curr_tcp_accel = pose_sub(curr_tcp_speed, prev_tcp_speed)
-  i = 0
-  while i < 6:
-    curr_tcp_accel[i] = curr_tcp_accel[i] / get_steptime()
-    i = i + 1
-  end
-  linear_accel = [curr_tcp_accel[0], curr_tcp_accel[1], curr_tcp_accel[2]]
-  prev_tcp_speed = curr_tcp_speed
-  if logging_counter % 500 == 0:
-    textmsg("Current tcp force: ", curr_tcp_force)
-    textmsg("Current tcp accel: ", curr_tcp_accel)
-    textmsg("Step time: ", get_steptime())
-    logging_counter = 0
-  end
+  prev_tcp_speed = 
+  linear_accel = [curr_tcp_accel[0] / get_steptime(), curr_tcp_accel[1] / get_steptime(), curr_tcp_accel[2] / get_steptime()]
+  resultant_accel = norm((-1 * linear_accel) + (-1 * curr_gravity_vector))
+  resultant_force = norm([curr_tcp_force[0], curr_tcp_force[1], curr_tcp_force[2]])
+  resultant_torque = norm([curr_tcp_force[3], curr_tcp_force[4], curr_tcp_force[5]])
+  calc_mass = resultant_force / resultant_accel
+  calc_cog = resultant_torque / resultant_force
+  write_output_float_register(2, calc_mass)
+  write_output_float_register(3, calc_cog)
 end
 
 # Thread to receive one shot script commands, the commands shouldn't be blocking
