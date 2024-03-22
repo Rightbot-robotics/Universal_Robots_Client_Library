@@ -476,6 +476,29 @@ bool UrDriver::endToolContact()
   }
 }
 
+void UrDriver::setToolContactResultCallback(std::function<void(control::ToolContactResult)> callback)
+{
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "Tool contact is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return;
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    script_command_interface_->setToolContactResultCallback(callback);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    return;
+  }
+}
+
 bool UrDriver::setGravity(const vector3d_t& gravity)
 {
   if (script_command_interface_->clientConnected())
