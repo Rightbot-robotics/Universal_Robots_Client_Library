@@ -554,6 +554,8 @@ std::unordered_map<std::string, DataPackage::_rtde_type_variant> DataPackage::g_
   { "standard_analog_output_0", double() },
   { "standard_analog_output_1", double() },
   { "tcp_offset", vector6d_t() },
+  { "payload", double() },
+  { "payload_cog", vector3d_t() },
 };
 
 void rtde_interface::DataPackage::initEmpty()
