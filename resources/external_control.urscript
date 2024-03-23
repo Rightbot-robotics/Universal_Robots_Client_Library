@@ -488,6 +488,15 @@ def dynamic_payload_setting():
     write_output_float_register(4, total_acceleration[0])
     write_output_float_register(5, total_acceleration[1])
     write_output_float_register(6, total_acceleration[2])
+    if calc_mass > 15:
+      calc_mass = 15
+    end
+    if calc_cog > 0.5:
+      calc_cog = 0.5
+    end
+    final_mass = calc_mass + 7.0
+    final_cog = ((7.0 * 0.013) + (calc_mass * calc_cog))/final_mass
+    set_target_payload(final_mass, [0.0, 0.0, final_cog])
   end
 end
 
