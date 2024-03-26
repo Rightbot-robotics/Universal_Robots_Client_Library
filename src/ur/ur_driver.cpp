@@ -518,6 +518,30 @@ bool UrDriver::setGravity(const vector3d_t& gravity)
   }
 }
 
+bool UrDriver::activateDynamicPayload()
+{
+  
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "FT sensor is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->activateDynamicPayload();
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to activate dynamic payload.");
+    return 0;
+  }
+}
+
 bool UrDriver::writeKeepalive(const RobotReceiveTimeout& robot_receive_timeout)
 {
   vector6d_t* fake = nullptr;

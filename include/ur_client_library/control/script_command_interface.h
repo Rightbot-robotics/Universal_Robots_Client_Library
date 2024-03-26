@@ -150,6 +150,13 @@ public:
   bool setGravity(const vector3d_t* gravity);
 
   /*!
+   * \brief Allows setting of dynamic payload calculates in the external control ur script
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool activateDynamicPayload();
+
+  /*!
    * \brief  Returns whether a client/robot is connected to this server.
    *
    */
@@ -187,6 +194,7 @@ private:
     START_TOOL_CONTACT = 5,  ///< Start detecting tool contact
     END_TOOL_CONTACT = 6,    ///< End detecting tool contact
     SET_GRAVITY = 7,    ///< Set gravity
+    ACTIVATE_DYNAMIC_PAYLOAD = 8,    ///< Set Activate Dynamic Payload
   };
 
   bool client_connected_;

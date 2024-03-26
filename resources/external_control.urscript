@@ -48,6 +48,7 @@ END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_GRAVITY = 7
+ACTIVATE_DYNAMIC_PAYLOAD = 8
 SCRIPT_COMMAND_DATA_DIMENSION = 26
 
 FREEDRIVE_MODE_START = 1
@@ -79,6 +80,7 @@ global loop_count = 0
 global stability_count = 0
 global tcp_force_sum = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global prev_mass = -4.0
+global dynamic_payload_active = False
 
 # Global thread variables
 thread_move = 0
@@ -502,8 +504,10 @@ def dynamic_payload_setting():
     final_mass = calc_mass + 7.0
     final_cog = ((7.0 * 0.013) + (calc_mass * calc_cog))/final_mass
     if stability_count > 9:
-      if norm(get_target_payload() - final_mass) > 1.0:
+      if norm(get_target_payload() - final_mass) > 1.0 and dynamic_payload_active == True:
         set_target_payload(final_mass, [0.0, 0.0, final_cog])
+        textmsg("Deactivating dynamic payload setting, payload value: ", final_mass)
+        dynamic_payload_active = False
       end
       stability_count = 9
     end
@@ -553,6 +557,9 @@ thread script_commands():
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
         curr_gravity_vector = gravity
+      elif command == ACTIVATE_DYNAMIC_PAYLOAD:
+        dynamic_payload_active = True
+        textmsg("ExternalControl: Activated dynamic payload setting.")
       end
     end
   end
@@ -656,7 +663,9 @@ while control_mode > MODE_STOPPED:
     if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
       tool_contact_detection()
     end
-    dynamic_payload_setting()
+    if dynamic_payload_active == True:
+      dynamic_payload_setting()
+    end
   else:
     textmsg("Socket timed out waiting for command on reverse_socket. The script will exit now.")
     control_mode = MODE_STOPPED

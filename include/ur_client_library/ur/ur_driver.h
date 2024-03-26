@@ -388,6 +388,13 @@ public:
   bool setGravity(const vector3d_t& gravity);
 
   /*!
+   * \brief Allows setting of dynamic payload calculates in the external control ur script
+   *
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool activateDynamicPayload();
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still
