@@ -76,6 +76,7 @@ global gravity_is_set = False
 global dynamic_payload_first_pass = True
 global prev_tcp_speed = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global loop_count = 0
+global stability_count = 0
 global tcp_force_sum = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global prev_mass = -4.0
 
@@ -475,7 +476,6 @@ def dynamic_payload_setting():
   if loop_count == 10:
     loop_count = 0
     curr_tcp_force = [tcp_force_sum[0]/10, tcp_force_sum[1]/10, tcp_force_sum[2]/10, tcp_force_sum[3]/10, tcp_force_sum[4]/10, tcp_force_sum[5]/10]
-    # curr_tcp_force = get_tcp_force()
     curr_tcp_speed = get_actual_tcp_speed()
     curr_tcp_speed_diff = pose_sub(curr_tcp_speed, prev_tcp_speed)
     prev_tcp_speed = curr_tcp_speed
@@ -487,23 +487,31 @@ def dynamic_payload_setting():
     resultant_torque = norm([curr_tcp_force[3], curr_tcp_force[4], curr_tcp_force[5]])
     calc_mass = resultant_force / resultant_accel
     calc_cog = resultant_torque / resultant_force
-    write_output_float_register(2, calc_mass)
-    write_output_float_register(3, calc_cog)
-    write_output_float_register(4, total_acceleration[0])
-    write_output_float_register(5, total_acceleration[1])
-    write_output_float_register(6, total_acceleration[2])
+    if norm(prev_mass - calc_mass) < 1.0:
+      stability_count = stability_count + 1
+    else:
+      stability_count = 0
+    end
+    prev_mass = calc_mass
     if calc_mass > 15:
       calc_mass = 15
     end
-    if calc_cog > 0.5:
-      calc_cog = 0.5
+    if calc_cog > 0.56:
+      calc_cog = 0.56
     end
     final_mass = calc_mass + 7.0
     final_cog = ((7.0 * 0.013) + (calc_mass * calc_cog))/final_mass
-    if norm(prev_mass - calc_mass) > 5.0:
-      set_target_payload(final_mass, [0.0, 0.0, final_cog])
-      prev_mass = calc_mass
+    if stability_count > 9:
+      if norm(get_target_payload() - final_mass) > 1.0:
+        set_target_payload(final_mass, [0.0, 0.0, final_cog])
+      end
+      stability_count = 9
     end
+    write_output_float_register(2, final_mass)
+    write_output_float_register(3, final_cog)
+    write_output_float_register(4, total_acceleration[0])
+    write_output_float_register(5, total_acceleration[1])
+    write_output_float_register(6, total_acceleration[2])
     tcp_force_sum = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   end
 end
