@@ -76,6 +76,8 @@ global gravity_is_set = False
 global dynamic_payload_first_pass = True
 global prev_tcp_speed = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global loop_count = 0
+global tcp_force_sum = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global prev_mass = -4.0
 
 # Global thread variables
 thread_move = 0
@@ -469,9 +471,11 @@ def dynamic_payload_setting():
     prev_tcp_speed = get_actual_tcp_speed()
     dynamic_payload_first_pass = False
   end
+  tcp_force_sum = pose_add(tcp_force_sum, get_tcp_force())
   if loop_count == 10:
     loop_count = 0
-    curr_tcp_force = get_tcp_force()
+    curr_tcp_force = [tcp_force_sum[0]/10, tcp_force_sum[1]/10, tcp_force_sum[2]/10, tcp_force_sum[3]/10, tcp_force_sum[4]/10, tcp_force_sum[5]/10]
+    # curr_tcp_force = get_tcp_force()
     curr_tcp_speed = get_actual_tcp_speed()
     curr_tcp_speed_diff = pose_sub(curr_tcp_speed, prev_tcp_speed)
     prev_tcp_speed = curr_tcp_speed
@@ -496,7 +500,11 @@ def dynamic_payload_setting():
     end
     final_mass = calc_mass + 7.0
     final_cog = ((7.0 * 0.013) + (calc_mass * calc_cog))/final_mass
-    set_target_payload(final_mass, [0.0, 0.0, final_cog])
+    if norm(prev_mass - calc_mass) > 5.0:
+      set_target_payload(final_mass, [0.0, 0.0, final_cog])
+      prev_mass = calc_mass
+    end
+    tcp_force_sum = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   end
 end
 
