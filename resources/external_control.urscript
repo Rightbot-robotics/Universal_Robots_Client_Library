@@ -472,7 +472,7 @@ end
 
 def set_payload_loop():
   if payload_loop_first_pass:
-    payload_value_step = (target_payload_mass - get_target_payload()) / (1.0 / get_steptime())
+    payload_value_step = (target_payload_mass - get_target_payload()) / (0.5 / get_steptime())
     payload_loop_first_pass = False
   end
 
@@ -641,8 +641,8 @@ while control_mode > MODE_STOPPED:
       if is_initial_script == True:
         if default_payload_set == False:
           default_payload_set = True
-          testmsg("Setting the default payload value: ", deafult_payload_mass)
-          set_target_payload(deafult_payload_mass, deafult_payload_cog)
+          textmsg("Setting the default payload value: ", deafult_payload_mass)
+          # set_target_payload(deafult_payload_mass, deafult_payload_cog)
         end
         if norm(register_payload_mass - deafult_payload_mass) < 0.01:
           consider_register_payload_values = True

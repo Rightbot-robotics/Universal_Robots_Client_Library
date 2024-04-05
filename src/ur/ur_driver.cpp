@@ -219,6 +219,11 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                  std::to_string(default_payload_cog_z));
   }
 
+  URCL_LOG_INFO("Default payload mass: %f", default_payload_mass);
+  URCL_LOG_INFO("Default payload cog x: %f", default_payload_cog_x);
+  URCL_LOG_INFO("Default payload cog y: %f", default_payload_cog_y);
+  URCL_LOG_INFO("Default payload cog z: %f", default_payload_cog_z);
+
 
   prog.replace(prog.find(BEGIN_REPLACE), BEGIN_REPLACE.length(), begin_replace.str());
 
