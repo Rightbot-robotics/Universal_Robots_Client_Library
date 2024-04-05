@@ -542,6 +542,7 @@ trajectory_points_left = 0
 textmsg("ExternalControl: External control active...")
 global read_timeout = 0.0 # First read is blocking
 thread_script_commands = run script_commands()
+textmsg("Received double register value: ", read_input_float_register(24))
 while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
