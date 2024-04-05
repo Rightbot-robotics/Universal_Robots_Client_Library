@@ -51,6 +51,11 @@ static const std::string TRAJECTORY_PORT_REPLACE("{{TRAJECTORY_SERVER_PORT_REPLA
 static const std::string SCRIPT_COMMAND_PORT_REPLACE("{{SCRIPT_COMMAND_SERVER_PORT_REPLACE}}");
 static const std::string FORCE_MODE_SET_DAMPING_REPLACE("{{FORCE_MODE_SET_DAMPING_REPLACE}}");
 static const std::string FORCE_MODE_SET_GAIN_SCALING_REPLACE("{{FORCE_MODE_SET_GAIN_SCALING_REPLACE}}");
+static const std::string IS_INITIAL_SCRIPT_REPLACE("{{IS_INITIAL_SCRIPT_REPLACE}}");
+static const std::string DEFAULT_PAYLOAD_MASS_REPLACE("{{DEFAULT_PAYLOAD_MASS_REPLACE}}");
+static const std::string DEFAULT_PAYLOAD_COG_X_REPLACE("{{DEFAULT_PAYLOAD_COG_X_REPLACE}}");
+static const std::string DEFAULT_PAYLOAD_COG_Y_REPLACE("{{DEFAULT_PAYLOAD_COG_Y_REPLACE}}");
+static const std::string DEFAULT_PAYLOAD_COG_Z_REPLACE("{{DEFAULT_PAYLOAD_COG_Z_REPLACE}}");
 
 urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_file,
                          const std::string& output_recipe_file, const std::string& input_recipe_file,
@@ -58,7 +63,8 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          std::unique_ptr<ToolCommSetup> tool_comm_setup, const uint32_t reverse_port,
                          const uint32_t script_sender_port, int servoj_gain, double servoj_lookahead_time,
                          bool non_blocking_read, const std::string& reverse_ip, const uint32_t trajectory_port,
-                         const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling)
+                         const uint32_t script_command_port, double force_mode_damping, double force_mode_gain_scaling,
+                         double default_payload_mass, double default_payload_cog_x, double default_payload_cog_y, double default_payload_cog_z)
   : servoj_gain_(servoj_gain)
   , servoj_lookahead_time_(servoj_lookahead_time)
   , step_time_(std::chrono::milliseconds(8))
@@ -188,6 +194,32 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                   << tool_comm_setup->getStopBits() << ", " << tool_comm_setup->getRxIdleChars() << ", "
                   << tool_comm_setup->getTxIdleChars() << ")";
   }
+
+  while(prog.find(DEFAULT_PAYLOAD_MASS_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(DEFAULT_PAYLOAD_MASS_REPLACE), DEFAULT_PAYLOAD_MASS_REPLACE.length(),
+                 std::to_string(default_payload_mass));
+  }
+
+  while(prog.find(DEFAULT_PAYLOAD_COG_X_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(DEFAULT_PAYLOAD_COG_X_REPLACE), DEFAULT_PAYLOAD_COG_X_REPLACE.length(),
+                 std::to_string(default_payload_cog_x));
+  }
+
+  while(prog.find(DEFAULT_PAYLOAD_COG_Y_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(DEFAULT_PAYLOAD_COG_Y_REPLACE), DEFAULT_PAYLOAD_COG_Y_REPLACE.length(),
+                 std::to_string(default_payload_cog_y));
+  }
+
+  while(prog.find(DEFAULT_PAYLOAD_COG_Z_REPLACE) != std::string::npos)
+  {
+    prog.replace(prog.find(DEFAULT_PAYLOAD_COG_Z_REPLACE), DEFAULT_PAYLOAD_COG_Z_REPLACE.length(),
+                 std::to_string(default_payload_cog_z));
+  }
+
+
   prog.replace(prog.find(BEGIN_REPLACE), BEGIN_REPLACE.length(), begin_replace.str());
 
   in_headless_mode_ = headless_mode;
@@ -202,7 +234,11 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
       full_robot_program_ += "\t" + line + "\n";
     }
     full_robot_program_ += "end\n";
+    std::string temp_program_holder = full_robot_program_;
+    full_robot_program_.replace(full_robot_program_.find(IS_INITIAL_SCRIPT_REPLACE), IS_INITIAL_SCRIPT_REPLACE.length(), "True");
     sendRobotProgram();
+    full_robot_program_ = temp_program_holder;
+    full_robot_program_.replace(full_robot_program_.find(IS_INITIAL_SCRIPT_REPLACE), IS_INITIAL_SCRIPT_REPLACE.length(), "False");
   }
   else
   {
@@ -224,11 +260,12 @@ urcl::UrDriver::UrDriver(const std::string& robot_ip, const std::string& script_
                          const uint32_t reverse_port, const uint32_t script_sender_port, int servoj_gain,
                          double servoj_lookahead_time, bool non_blocking_read, const std::string& reverse_ip,
                          const uint32_t trajectory_port, const uint32_t script_command_port, double force_mode_damping,
-                         double force_mode_gain_scaling)
+                         double force_mode_gain_scaling,
+                         double default_payload_mass, double default_payload_cog_x, double default_payload_cog_y, double default_payload_cog_z)
   : UrDriver(robot_ip, script_file, output_recipe_file, input_recipe_file, handle_program_state, headless_mode,
              std::move(tool_comm_setup), reverse_port, script_sender_port, servoj_gain, servoj_lookahead_time,
              non_blocking_read, reverse_ip, trajectory_port, script_command_port, force_mode_damping,
-             force_mode_gain_scaling)
+             force_mode_gain_scaling, default_payload_mass, default_payload_cog_x, default_payload_cog_y, default_payload_cog_z)
 {
   URCL_LOG_WARN("DEPRECATION NOTICE: Passing the calibration_checksum to the UrDriver's constructor has been "
                 "deprecated. Instead, use the checkCalibration(calibration_checksum) function separately. This "

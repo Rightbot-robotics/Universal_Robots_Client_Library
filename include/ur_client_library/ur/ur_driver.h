@@ -101,7 +101,8 @@ public:
            const uint32_t script_sender_port = 50002, int servoj_gain = 2000, double servoj_lookahead_time = 0.03,
            bool non_blocking_read = false, const std::string& reverse_ip = "", const uint32_t trajectory_port = 50003,
            const uint32_t script_command_port = 50004, double force_mode_damping = 0.025,
-           double force_mode_gain_scaling = 0.5);
+           double force_mode_gain_scaling = 0.5,
+           double deafult_payload_mass = 0.0, double default_payload_cog_x = 0.0, double default_payload_cog_y = 0.0, double default_payload_cog_z = 0.0);
 
   /*!
    * \brief Constructs a new UrDriver object.
@@ -138,7 +139,8 @@ public:
            const uint32_t reverse_port = 50001, const uint32_t script_sender_port = 50002, int servoj_gain = 2000,
            double servoj_lookahead_time = 0.03, bool non_blocking_read = false, const std::string& reverse_ip = "",
            const uint32_t trajectory_port = 50003, const uint32_t script_command_port = 50004,
-           double force_mode_damping = 0.025, double force_mode_gain_scaling = 0.5);
+           double force_mode_damping = 0.025, double force_mode_gain_scaling = 0.5,
+           double deafult_payload_mass = 0.0, double default_payload_cog_x = 0.0, double default_payload_cog_y = 0.0, double default_payload_cog_z = 0.0);
   /*!
    * \brief Constructs a new UrDriver object.
    *
