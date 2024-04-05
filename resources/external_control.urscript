@@ -71,6 +71,11 @@ global control_mode = MODE_UNINITIALIZED
 global trajectory_points_left = 0
 global last_spline_qdd = [0, 0, 0, 0, 0, 0]
 global tool_contact_running = False
+global target_payload_mass = 0
+global target_payload_cog = [0.0, 0.0, 0.0]
+global run_set_payload_loop = False
+global payload_loop_first_pass = True
+global payload_value_step = 0.0
 
 # Global thread variables
 thread_move = 0
@@ -436,6 +441,7 @@ def tool_contact_detection():
 
   # If tool contact is detected stop movement and move back to intial contact point
   if step_back > 0:
+    textmsg("tool contact detected!")
     if control_mode == MODE_FORWARD:
       kill thread_trajectory
       clear_remaining_trajectory_points()
@@ -448,13 +454,29 @@ def tool_contact_detection():
 
     # Set control mode to tool in contact, should be cleared by stopping tool contact detection
     control_mode = MODE_TOOL_IN_CONTACT
-    stopl(3)
+    stopl(10)
 
     # Move to initial contact point
-    q = get_actual_joint_positions_history(step_back)
-    movel(q)
+    # q = get_actual_joint_positions_history(step_back/2)
+    # movel(q)
     socket_send_int(UNTIL_TOOL_CONTACT_RESULT_SUCCESS, "script_command_socket")
-    textmsg("tool contact detected")
+  end
+end
+
+def set_payload_loop():
+  if payload_loop_first_pass:
+    payload_value_step = (target_payload_mass - get_target_payload()) / (1.0 / get_steptime())
+    payload_loop_first_pass = False
+  end
+
+  new_payload = get_target_payload() + payload_value_step
+  if ((target_payload_mass - new_payload) * payload_value_step) > 0:
+    set_target_payload(new_payload, target_payload_cog)
+  else:
+    textmsg("Setting final payload of ", target_payload_mass)
+    set_target_payload(target_payload_mass, target_payload_cog)
+    textmsg("Final payload set.")
+    run_set_payload_loop = False
   end
 end
 
@@ -467,9 +489,12 @@ thread script_commands():
       if command == ZERO_FTSENSOR:
         zero_ftsensor()
       elif command == SET_PAYLOAD:
-        mass = raw_command[2] / MULT_jointstate
-        cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
-        set_payload(mass, cog)
+        target_payload_mass = raw_command[2] / MULT_jointstate
+        target_payload_cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
+        payload_loop_first_pass = True
+        run_set_payload_loop = True
+        # set_payload(mass, cog)
+        textmsg("Payload set request received")
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
         set_tool_voltage(tool_voltage)
@@ -484,6 +509,7 @@ thread script_commands():
         end_force_mode()
       elif command == START_TOOL_CONTACT:
         tool_contact_running = True
+        textmsg("Starting tool contact")
       elif command == END_TOOL_CONTACT:
         if control_mode != MODE_TOOL_IN_CONTACT:
           # If tool contact hasn't been detected send canceled result
@@ -513,7 +539,7 @@ control_mode = MODE_UNINITIALIZED
 thread_move = 0
 thread_trajectory = 0
 trajectory_points_left = 0
-textmsg("ExternalControl: External control active")
+textmsg("ExternalControl: External control active...")
 global read_timeout = 0.0 # First read is blocking
 thread_script_commands = run script_commands()
 while control_mode > MODE_STOPPED:
@@ -596,6 +622,9 @@ while control_mode > MODE_STOPPED:
     # Tool contact is running, but hasn't been detected
     if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
       tool_contact_detection()
+    end
+    if run_set_payload_loop == True:
+      set_payload_loop()
     end
   else:
     textmsg("Socket timed out waiting for command on reverse_socket. The script will exit now.")
