@@ -29,6 +29,8 @@
 #define UR_CLIENT_LIBRARY_UR_UR_DRIVER_H_INCLUDED
 
 #include <functional>
+#include <chrono>
+#include <thread>
 
 #include "ur_client_library/rtde/rtde_client.h"
 #include "ur_client_library/control/reverse_interface.h"
@@ -509,6 +511,7 @@ public:
 
 private:
   static std::string readScriptFile(const std::string& filename);
+  void tryReconnectScriptCommandInterface();
 
   int rtde_frequency_;
   comm::INotifier notifier_;

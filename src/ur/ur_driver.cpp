@@ -484,6 +484,11 @@ bool UrDriver::startToolContact()
     return false;
   }
 
+  if (!script_command_interface_->clientConnected())
+  {
+    tryReconnectScriptCommandInterface();
+  }
+
   if (script_command_interface_->clientConnected())
   {
     return script_command_interface_->startToolContact();
@@ -505,6 +510,11 @@ bool UrDriver::endToolContact()
        << getVersion();
     URCL_LOG_ERROR(ss.str().c_str());
     return false;
+  }
+
+  if (!script_command_interface_->clientConnected())
+  {
+    tryReconnectScriptCommandInterface();
   }
 
   if (script_command_interface_->clientConnected())
@@ -675,6 +685,53 @@ void UrDriver::setKeepaliveCount(const uint32_t count)
                 "read timeout in the write commands directly. This keepalive count will overwrite the timeout passed "
                 "to the write functions.");
   reverse_interface_->setKeepaliveCount(count);
+}
+
+void UrDriver::tryReconnectScriptCommandInterface()
+{
+  int retry_count = 2;
+  int curr_try = 0;
+  double reconnection_wait_interval_sec = 0.5;
+  
+  std::chrono::system_clock::time_point waiting_time;
+  std::chrono::duration<double> reconnection_wait_interval(reconnection_wait_interval_sec);
+
+  while(curr_try < retry_count + 1)
+  {
+    curr_try++;
+    URCL_LOG_INFO("Resending robot program...");
+    if(!sendRobotProgram())
+    {
+      URCL_LOG_ERROR("Failed to send robot program. Retrying...");
+      continue;
+    }
+    
+    waiting_time = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(reconnection_wait_interval);
+    URCL_LOG_INFO("Waiting for robot to connect to script command interface...");
+    while(!script_command_interface_->clientConnected() && std::chrono::system_clock::now() < waiting_time)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    if(!script_command_interface_->clientConnected())
+    {
+      URCL_LOG_ERROR("Failed to connect to script command interface. Retrying...");
+      continue;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  if(script_command_interface_->clientConnected())
+  {
+    URCL_LOG_INFO("Successfully connected to script command interface.");
+  }
+  else
+  {
+    URCL_LOG_ERROR("Failed to connect to script command interface. Exiting reconnection loop.");
+  }
 }
 
 }  // namespace urcl
