@@ -83,6 +83,9 @@ global deafult_payload_mass = {{DEFAULT_PAYLOAD_MASS_REPLACE}}
 global deafult_payload_cog = [{{DEFAULT_PAYLOAD_COG_X_REPLACE}}, {{DEFAULT_PAYLOAD_COG_Y_REPLACE}}, {{DEFAULT_PAYLOAD_COG_Z_REPLACE}}]
 global register_payload_mass = 0.0
 global register_payload_cog = [0.0, 0.0, 0.0]
+global force_mode_payload_set_active = False
+global force_mode_payload_set_commanded_force = False
+global force_mode_payload_set_curr_force = 0
 
 # Global thread variables
 thread_move = 0
@@ -487,6 +490,10 @@ def set_payload_loop():
   end
 end
 
+def force_mode_payload_loop():
+  force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 10, 0, 0, 0], 2, [0.01, 0.01, 0.02, 0.785, 0.785, 0.785])
+end
+
 # Thread to receive one shot script commands, the commands shouldn't be blocking
 thread script_commands():
   while control_mode > MODE_STOPPED:
@@ -511,7 +518,8 @@ thread script_commands():
         wrench = [raw_command[14] / MULT_jointstate, raw_command[15] / MULT_jointstate, raw_command[16] / MULT_jointstate, raw_command[17] / MULT_jointstate, raw_command[18] / MULT_jointstate, raw_command[19] / MULT_jointstate]
         force_type = raw_command[20] / MULT_jointstate
         force_limits = [raw_command[21] / MULT_jointstate, raw_command[22] / MULT_jointstate, raw_command[23] / MULT_jointstate, raw_command[24] / MULT_jointstate, raw_command[25] / MULT_jointstate, raw_command[26] / MULT_jointstate]
-        force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
+        # force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
+        force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 10, 0, 0, 0], 2, [0.01, 0.01, 0.02, 0.785, 0.785, 0.785])
       elif command == END_FORCE_MODE:
         end_force_mode()
       elif command == START_TOOL_CONTACT:
