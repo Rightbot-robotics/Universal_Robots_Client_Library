@@ -88,11 +88,16 @@ global force_mode_payload_set_curr_force = 0.0
 global force_mode_payload_set_rate_of_change_of_force = 100.0
 global force_mode_payload_set_max_force = 100.0
 global force_mode_payload_set_force_step = 0.0
-global force_mode_payload_set_tcp_force_list = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-global force_mode_payload_set_counter = 0
-global force_mode_payload_set_sum_counter = 0
-global force_mode_payload_set_tcp_force_sum = 0.0
+global raw_ft_history = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global raw_force_diff = 0.0
+global force_mode_payload_loop_count = 0
 global trigger_active = True
+global ft_raw_wrench = [0.0, 0.0, 0.0]
+global ft_raw_wrench_offset = [0.0, 0.0, 0.0]
+global current_raw_force = 0.0
+global next_access_index = 0
+global current_access_index = 0
+global test_counter = 0
 
 # Global thread variables
 thread_move = 0
@@ -498,25 +503,17 @@ def set_payload_loop():
 end
 
 def force_mode_payload_loop():
-  force_mode_payload_set_counter = force_mode_payload_set_counter + 1
-  if force_mode_payload_set_counter % 20 == 0:
-    if force_mode_payload_set_counter > 200:
-      textmsg("Yooooooo", force_mode_payload_set_counter)
-    end
-    if force_mode_payload_set_counter / 20 < 10:
-      force_mode_payload_set_tcp_force_list[force_mode_payload_set_counter / 20] = force()
-    end
-    if force_mode_payload_set_counter == 200:
-      force_mode_payload_set_counter = -19
-    end
-    force_mode_payload_set_tcp_force_sum = 0.0
-    force_mode_payload_set_sum_counter = 0
-    while force_mode_payload_set_sum_counter < 10:
-      force_mode_payload_set_tcp_force_sum = force_mode_payload_set_tcp_force_sum + force_mode_payload_set_tcp_force_list[force_mode_payload_set_sum_counter]
-      force_mode_payload_set_sum_counter = force_mode_payload_set_sum_counter + 1
-    end
+  force_mode_payload_loop_count = force_mode_payload_loop_count + 1
+  current_raw_force = norm(ft_raw_wrench - ft_raw_wrench_offset)
+
+  if force_mode_payload_loop_count % 10 == 0:
+    next_access_index = (current_access_index + 1) % 10
+    raw_ft_history[current_access_index] = current_raw_force
+    raw_force_diff = norm(raw_ft_history[next_access_index] - raw_ft_history[current_access_index])
+    current_access_index = (current_access_index + 1) % 10
+    force_mode_payload_loop_count = force_mode_payload_loop_count % 500
   end
-  
+
   force_mode_payload_set_force_step = force_mode_payload_set_rate_of_change_of_force * get_steptime()
   
   if force_mode_payload_set_curr_force < force_mode_payload_set_max_force:
@@ -525,18 +522,18 @@ def force_mode_payload_loop():
     force_mode_payload_set_curr_force = force_mode_payload_set_max_force
   end
   
-  if force_mode_payload_set_tcp_force_sum / 10.0 < 5.0 and trigger_active == True:
-    textmsg("<->TCP force stabilised exiting dynamic payload setting")
+  if raw_force_diff < 5.0 and trigger_active == True:
+    textmsg(">>> TCP force stabilised exiting dynamic payload setting")
     end_force_mode()
     force_mode_payload_set_active = False
   else:
-    if norm(get_target_payload() - (5.55 + (force_mode_payload_set_curr_force / 9.81))) > 1.0:
-      set_target_payload((5.55 + (force_mode_payload_set_curr_force / 9.81)), [-0.003, 0.007, 0.042])
+    if norm(get_target_payload() - (deafult_payload_mass + (current_raw_force / 9.81))) > 1.0:
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), deafult_payload_cog)
     end
     force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_curr_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
   end
 
-  if force_mode_payload_set_tcp_force_sum / 10.0 > 10.0 and trigger_active == False:
+  if raw_force_diff > 10.0 and trigger_active == False:
     trigger_active = True
   end
 end
@@ -566,9 +563,10 @@ thread script_commands():
         force_type = raw_command[20] / MULT_jointstate
         force_limits = [raw_command[21] / MULT_jointstate, raw_command[22] / MULT_jointstate, raw_command[23] / MULT_jointstate, raw_command[24] / MULT_jointstate, raw_command[25] / MULT_jointstate, raw_command[26] / MULT_jointstate]
         # force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
+        current_access_index = 0
         force_mode_payload_set_curr_force = 0.0
-        force_mode_payload_set_tcp_force_list = make_list(10, 2.0)
-        force_mode_payload_set_counter = 0
+        raw_ft_history = make_list(10, 0.0)
+        ft_raw_wrench_offset = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30)]
         trigger_active = False
         force_mode_payload_set_active = True
       elif command == END_FORCE_MODE:
@@ -695,6 +693,7 @@ while control_mode > MODE_STOPPED:
       tool_contact_detection()
     end
 
+    ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30)]
     if force_mode_payload_set_active == True:
       force_mode_payload_loop()
     end
