@@ -47,6 +47,26 @@ enum class ToolContactResult : int32_t
 };
 
 /*!
+ * \brief Types for encoding until dynamic payload setting execution result.
+ */
+enum class DynamicPayloadResult : int32_t
+{
+
+  PAYLOAD_SET_LOOP_COMPLETE = 2,   ///< Successful execution
+};
+
+/*!
+ * \brief Types for dynamic payload estimation
+ */
+enum class PayloadEstimType : int32_t
+{
+
+  TOP_LIFT = 0,
+  FRONT_LIFT = 1,
+  FRONT_DRAG = 2,
+};
+
+/*!
  * \brief The ScriptCommandInterface class starts a TCPServer for a robot to connect to and this connection is then used
  * to forward script commands to the robot, which will be executed locally on the robot.
  *
@@ -150,6 +170,17 @@ public:
   bool setGravity(const vector3d_t* gravity);
 
   /*!
+   * \brief Activate dynamic payload setting loop
+   *
+   * \param command_type  Specifies if the command is for front lift, front drag or top lift
+   *
+   * \param move_distance  Distance to move for payload estimation in meters
+   * 
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool startPayloadEstimation(PayloadEstimType command_type, double move_distance);
+
+  /*!
    * \brief  Returns whether a client/robot is connected to this server.
    *
    */
@@ -163,6 +194,16 @@ public:
   void setToolContactResultCallback(std::function<void(ToolContactResult)> callback)
   {
     handle_tool_contact_result_ = callback;
+  }
+
+  /*!
+   * \brief Set the payload extimation loop completion callback
+   *
+   * \param callback Callback function that will be triggered when the robot estimates the payload
+   */
+  void setPayloadEstimationResultCallback(std::function<void()> callback)
+  {
+    payload_estimation_finished_ = callback;
   }
 
 protected:
@@ -186,13 +227,15 @@ private:
     END_FORCE_MODE = 4,      ///< End force mode
     START_TOOL_CONTACT = 5,  ///< Start detecting tool contact
     END_TOOL_CONTACT = 6,    ///< End detecting tool contact
-    SET_GRAVITY = 7,    ///< Set gravity
+    SET_GRAVITY = 7,         ///< Set gravity
+    SET_DYNAMIC_PAYLOAD = 8  ///< Set dynamic payload
   };
 
   bool client_connected_;
   static const int MAX_MESSAGE_LENGTH = 26;
 
   std::function<void(ToolContactResult)> handle_tool_contact_result_;
+  std::function<void()> payload_estimation_finished_;
 };
 
 }  // namespace control

@@ -734,4 +734,60 @@ void UrDriver::tryReconnectScriptCommandInterface()
   }
 }
 
+bool UrDriver::startPayloadEstimation(control::PayloadEstimType command_type, double move_distance)
+{
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "Force mode is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return false;
+  }
+
+  if (!script_command_interface_->clientConnected())
+  {
+    tryReconnectScriptCommandInterface();
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->startPayloadEstimation(command_type, move_distance);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    return false;
+  }
+}
+
+void UrDriver::setPayloadEstimationResultCallback(std::function<void()> callback)
+{
+  if (getVersion().major < 5)
+  {
+    std::stringstream ss;
+    ss << "Force mode is only available for e-Series robots (Major version >= 5). This robot's "
+          "version is "
+       << getVersion();
+    URCL_LOG_ERROR(ss.str().c_str());
+    return;
+  }
+
+  if (!script_command_interface_->clientConnected())
+  {
+    tryReconnectScriptCommandInterface();
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    script_command_interface_->setPayloadEstimationResultCallback(callback);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    return;
+  }
+}
+
 }  // namespace urcl

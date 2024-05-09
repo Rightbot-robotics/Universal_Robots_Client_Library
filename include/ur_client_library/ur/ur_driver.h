@@ -392,6 +392,24 @@ public:
   bool setGravity(const vector3d_t& gravity);
 
   /*!
+   * \brief Activate dynamic payload setting loop
+   *
+   * \param command_type  Specifies if the command is for front lift, front drag or top lift
+   *
+   * \param move_distance  Distance to move for payload estimation in meters
+   * 
+   * \returns True, if the write was performed successfully, false otherwise.
+   */
+  bool startPayloadEstimation(control::PayloadEstimType command_type, double move_distance);
+
+  /*!
+   * \brief Set the payload estimation result callback
+   *
+   * \param callback Callback function that will be triggered when the robot completes the payload estimation
+   */
+  void setPayloadEstimationResultCallback(std::function<void()> callback);
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still
