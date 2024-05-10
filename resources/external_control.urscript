@@ -92,8 +92,8 @@ global register_payload_mass = 0.0
 global register_payload_cog = [0.0, 0.0, 0.0]
 global force_mode_payload_set_active = False
 global force_mode_payload_set_curr_force = 0.0
-global force_mode_payload_set_rate_of_change_of_force = 100.0
-global force_mode_payload_set_max_force = 250.0
+global force_mode_payload_set_rate_of_change_of_force = 1000.0
+global force_mode_payload_set_max_force = 300.0
 global force_mode_payload_set_force_step = 0.0
 global ft_raw_wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global ft_raw_wrench_offset = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -545,11 +545,11 @@ def force_mode_payload_loop():
       set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
     end
     if payload_estim_command_type == DP_TOP_LIFT:
-      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_curr_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_LIFT:
-      force_mode(payload_estim_curr_pos, [0, 1, 0, 0, 0, 0], [0, (-1.0 * force_mode_payload_set_curr_force), 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_curr_pos, [0, 1, 0, 0, 0, 0], [0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_DRAG:
-      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_curr_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
     end
   end
 end
