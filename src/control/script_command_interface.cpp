@@ -274,9 +274,24 @@ void ScriptCommandInterface::messageCallback(const int filedescriptor, char* buf
     int32_t* status = reinterpret_cast<int*>(buffer);
     URCL_LOG_DEBUG("Received message %d on Script command interface", be32toh(*status));
 
-    if (handle_tool_contact_result_)
+    if (
+      handle_tool_contact_result_ &&
+      (
+        static_cast<ToolContactResult>(be32toh(*status)) == ToolContactResult::UNTIL_TOOL_CONTACT_RESULT_CANCELED ||
+        static_cast<ToolContactResult>(be32toh(*status)) == ToolContactResult::UNTIL_TOOL_CONTACT_RESULT_SUCCESS
+      )
+    )
     {
       handle_tool_contact_result_(static_cast<ToolContactResult>(be32toh(*status)));
+    }
+    else if(
+      payload_estimation_finished_ &&
+      (
+        static_cast<DynamicPayloadResult>(be32toh(*status)) == DynamicPayloadResult::PAYLOAD_SET_LOOP_COMPLETE
+      )
+    )
+    {
+      payload_estimation_finished_();
     }
     else
     {
@@ -288,6 +303,31 @@ void ScriptCommandInterface::messageCallback(const int filedescriptor, char* buf
     URCL_LOG_WARN("Received %d bytes on script command interface. Expecting 4 bytes, so ignoring this message",
                   nbytesrecv);
   }
+}
+
+bool ScriptCommandInterface::startPayloadEstimation(PayloadEstimType command_type, double move_distance)
+{
+  const int message_length = 3;
+  uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
+  uint8_t* b_pos = buffer;
+  int32_t val = htobe32(toUnderlying(ScriptCommand::SET_DYNAMIC_PAYLOAD));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(static_cast<int32_t>(command_type));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(static_cast<int32_t>(round(move_distance * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
+
+  // writing zeros to allow usage with other script commands
+  for (size_t i = message_length; i < MAX_MESSAGE_LENGTH; i++)
+  {
+    val = htobe32(0);
+    b_pos += append(b_pos, val);
+  }
+  size_t written;
+
+  return server_.write(client_fd_, buffer, sizeof(buffer), written);
 }
 
 }  // namespace control

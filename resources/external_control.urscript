@@ -48,13 +48,20 @@ END_FORCE_MODE = 4
 START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_GRAVITY = 7
+SET_DYNAMIC_PAYLOAD = 8
 SCRIPT_COMMAND_DATA_DIMENSION = 26
+
+DP_TOP_LIFT = 0
+DP_FRONT_LIFT = 1
+DP_FRONT_DRAG = 2
 
 FREEDRIVE_MODE_START = 1
 FREEDRIVE_MODE_STOP = -1
 
 UNTIL_TOOL_CONTACT_RESULT_SUCCESS = 0
 UNTIL_TOOL_CONTACT_RESULT_CANCELED = 1
+
+PAYLOAD_SET_EXECUTION_COMPLETE = 2
 
 SPLINE_CUBIC = 1
 SPLINE_QUINTIC = 2
@@ -84,8 +91,22 @@ global deafult_payload_cog = [{{DEFAULT_PAYLOAD_COG_X_REPLACE}}, {{DEFAULT_PAYLO
 global register_payload_mass = 0.0
 global register_payload_cog = [0.0, 0.0, 0.0]
 global force_mode_payload_set_active = False
-global force_mode_payload_set_commanded_force = False
-global force_mode_payload_set_curr_force = 0
+global force_mode_payload_set_curr_force = 0.0
+global force_mode_payload_set_rate_of_change_of_force = 1000.0
+global force_mode_payload_set_max_force = 300.0
+global force_mode_payload_set_force_step = 0.0
+global ft_raw_wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global ft_raw_wrench_offset = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global ft_compensated = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global current_raw_force = 0.0
+global current_raw_torque = 0.0
+global payload_estim_start_pos = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global payload_estim_curr_pos = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global payload_estim_pos_diff = [0.0, 0.0, 0.0]
+global payload_estim_command_type = -1
+global payload_estim_move_distance = 0.0
+global calc_cog = deafult_payload_cog
+global extra_mass = 0.0
 
 # Global thread variables
 thread_move = 0
@@ -491,7 +512,46 @@ def set_payload_loop():
 end
 
 def force_mode_payload_loop():
-  force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 10, 0, 0, 0], 2, [0.01, 0.01, 0.02, 0.785, 0.785, 0.785])
+  force_mode_payload_set_force_step = force_mode_payload_set_rate_of_change_of_force * get_steptime()
+  
+  if force_mode_payload_set_curr_force < force_mode_payload_set_max_force:
+    force_mode_payload_set_curr_force = force_mode_payload_set_curr_force + force_mode_payload_set_force_step
+  else:
+    force_mode_payload_set_curr_force = force_mode_payload_set_max_force
+  end
+
+  payload_estim_curr_pos = get_actual_tcp_pose()
+
+  payload_estim_pos_diff = [payload_estim_start_pos[0] - payload_estim_curr_pos[0], payload_estim_start_pos[1] - payload_estim_curr_pos[1], payload_estim_start_pos[2] - payload_estim_curr_pos[2]]
+
+  ft_compensated = ft_raw_wrench - ft_raw_wrench_offset
+
+  current_raw_force = norm([ft_compensated[0], ft_compensated[1], ft_compensated[2]])
+  current_raw_torque = norm([ft_compensated[3], ft_compensated[4], ft_compensated[5]])
+
+  extra_mass = current_raw_force / 9.81
+  calc_cog[2] = (deafult_payload_mass * deafult_payload_cog[2] + extra_mass * (current_raw_torque / current_raw_force)) / (deafult_payload_mass + extra_mass)
+  if calc_cog[2] > 1.0:
+    calc_cog[2] = 1.0
+  end
+  
+  if norm(payload_estim_pos_diff) > payload_estim_move_distance:
+    textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
+    end_force_mode()
+    socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+    force_mode_payload_set_active = False
+  else:
+    if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0:
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
+    end
+    if payload_estim_command_type == DP_TOP_LIFT:
+      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+    elif payload_estim_command_type == DP_FRONT_LIFT:
+      force_mode(payload_estim_curr_pos, [0, 1, 0, 0, 0, 0], [0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
+    elif payload_estim_command_type == DP_FRONT_DRAG:
+      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+    end
+  end
 end
 
 # Thread to receive one shot script commands, the commands shouldn't be blocking
@@ -501,13 +561,14 @@ thread script_commands():
     if raw_command[0] > 0:
       command = raw_command[1]
       if command == ZERO_FTSENSOR:
+        ft_raw_wrench_offset = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
         zero_ftsensor()
       elif command == SET_PAYLOAD:
-        # target_payload_mass = raw_command[2] / MULT_jointstate
-        # target_payload_cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
+        target_payload_mass = raw_command[2] / MULT_jointstate
+        target_payload_cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
         # payload_loop_first_pass = True
         # run_set_payload_loop = True
-        # set_payload(mass, cog)
+        set_payload(target_payload_mass, target_payload_cog)
         textmsg("Payload set request received, but not doing any action.")
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
@@ -518,8 +579,7 @@ thread script_commands():
         wrench = [raw_command[14] / MULT_jointstate, raw_command[15] / MULT_jointstate, raw_command[16] / MULT_jointstate, raw_command[17] / MULT_jointstate, raw_command[18] / MULT_jointstate, raw_command[19] / MULT_jointstate]
         force_type = raw_command[20] / MULT_jointstate
         force_limits = [raw_command[21] / MULT_jointstate, raw_command[22] / MULT_jointstate, raw_command[23] / MULT_jointstate, raw_command[24] / MULT_jointstate, raw_command[25] / MULT_jointstate, raw_command[26] / MULT_jointstate]
-        # force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
-        force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 10, 0, 0, 0], 2, [0.01, 0.01, 0.02, 0.785, 0.785, 0.785])
+        force_mode(task_frame, selection_vector, wrench, force_type, force_limits)
       elif command == END_FORCE_MODE:
         end_force_mode()
       elif command == START_TOOL_CONTACT:
@@ -535,6 +595,12 @@ thread script_commands():
         gravity = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate]
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
+      elif command == SET_DYNAMIC_PAYLOAD:
+        payload_estim_command_type = raw_command[2]
+        payload_estim_move_distance = raw_command[3] / MULT_jointstate
+        force_mode_payload_set_curr_force = 0.0
+        payload_estim_start_pos = get_actual_tcp_pose()
+        force_mode_payload_set_active = True
       end
     end
   end
@@ -642,6 +708,11 @@ while control_mode > MODE_STOPPED:
     if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
       tool_contact_detection()
     end
+
+    ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
+    if force_mode_payload_set_active == True:
+      force_mode_payload_loop()
+    end
     
     register_payload_mass = read_input_float_register(24)
     
@@ -662,18 +733,18 @@ while control_mode > MODE_STOPPED:
       end
     end
     
-    if consider_register_payload_values == True:
-      if norm(register_payload_mass - get_target_payload()) > 0.01 and run_set_payload_loop == False:
-        textmsg("Detected new payload value. Setting payload to new value: ", register_payload_mass)
-        register_payload_cog[0] = read_input_float_register(25)
-        register_payload_cog[1] = read_input_float_register(26)
-        register_payload_cog[2] = read_input_float_register(27)
-        target_payload_mass = register_payload_mass
-        target_payload_cog = register_payload_cog
-        payload_loop_first_pass = True
-        run_set_payload_loop = True
-      end
-    end
+    # if consider_register_payload_values == True:
+    #   if norm(register_payload_mass - get_target_payload()) > 0.01 and run_set_payload_loop == False:
+    #     textmsg("Detected new payload value. Setting payload to new value: ", register_payload_mass)
+    #     register_payload_cog[0] = read_input_float_register(25)
+    #     register_payload_cog[1] = read_input_float_register(26)
+    #     register_payload_cog[2] = read_input_float_register(27)
+    #     target_payload_mass = register_payload_mass
+    #     target_payload_cog = register_payload_cog
+    #     payload_loop_first_pass = True
+    #     run_set_payload_loop = True
+    #   end
+    # end
     
     if run_set_payload_loop == True:
       set_payload_loop()
