@@ -526,9 +526,7 @@ def force_mode_payload_loop():
 
   ft_compensated = ft_raw_wrench - ft_raw_wrench_offset
 
-  if payload_estim_command_type == DP_TOP_LIFT:
-    current_raw_force = norm([ft_compensated[0], ft_compensated[1], ft_compensated[2]])
-  elif payload_estim_command_type == DP_FRONT_DRAG:
+  if payload_estim_command_type == DP_TOP_LIFT or payload_estim_command_type == DP_FRONT_DRAG:
     current_raw_force = ft_compensated[2]
   elif payload_estim_command_type == DP_FRONT_LIFT:
     current_raw_force = ft_compensated[1]
@@ -608,6 +606,7 @@ thread script_commands():
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
       elif command == SET_DYNAMIC_PAYLOAD:
+        textmsg("Received dynamic payload estimation command with command type: ", payload_estim_command_type)
         payload_estim_command_type = raw_command[2]
         payload_estim_move_distance = raw_command[3] / MULT_jointstate
         force_mode_payload_set_curr_force = 0.0
