@@ -550,7 +550,7 @@ def force_mode_payload_loop():
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
     end_force_mode()
     if payload_estim_command_type == DP_FRONT_DRAG:
-      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 2.5, calc_cog)
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 1.5, calc_cog)
     end
     socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
     force_mode_payload_set_active = False
