@@ -107,6 +107,7 @@ global payload_estim_command_type = -1
 global payload_estim_move_distance = 0.0
 global calc_cog = deafult_payload_cog
 global extra_mass = 0.0
+global mass_additional = 4.0
 
 # Global thread variables
 thread_move = 0
@@ -552,7 +553,11 @@ def force_mode_payload_loop():
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0:
-      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
+      if payload_estim_command_type == DP_FRONT_DRAG:
+        set_target_payload((deafult_payload_mass + (current_raw_force / 9.81) + mass_additional), calc_cog)
+      else:
+        set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
+      end
     end
     if payload_estim_command_type == DP_TOP_LIFT:
       force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
@@ -579,7 +584,7 @@ thread script_commands():
         # payload_loop_first_pass = True
         # run_set_payload_loop = True
         set_payload(target_payload_mass, target_payload_cog)
-        textmsg("Payload set request received, but not doing any action.")
+        textmsg("Payload set successfully.")
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
         set_tool_voltage(tool_voltage)
