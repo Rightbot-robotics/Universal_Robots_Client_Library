@@ -549,15 +549,14 @@ def force_mode_payload_loop():
   if norm(payload_estim_pos_diff) > payload_estim_move_distance:
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
     end_force_mode()
+    if payload_estim_command_type == DP_FRONT_DRAG:
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 2.5, calc_cog)
+    end
     socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0:
-      if payload_estim_command_type == DP_FRONT_DRAG:
-        set_target_payload((deafult_payload_mass + (current_raw_force / 9.81) + mass_additional), calc_cog)
-      else:
-        set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
-      end
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
     end
     if payload_estim_command_type == DP_TOP_LIFT:
       force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
