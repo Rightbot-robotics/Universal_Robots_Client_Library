@@ -54,6 +54,7 @@ SCRIPT_COMMAND_DATA_DIMENSION = 26
 DP_TOP_LIFT = 0
 DP_FRONT_LIFT = 1
 DP_FRONT_DRAG = 2
+DP_TOP_DRAG = 3
 
 FREEDRIVE_MODE_START = 1
 FREEDRIVE_MODE_STOP = -1
@@ -91,10 +92,7 @@ global deafult_payload_cog = [{{DEFAULT_PAYLOAD_COG_X_REPLACE}}, {{DEFAULT_PAYLO
 global register_payload_mass = 0.0
 global register_payload_cog = [0.0, 0.0, 0.0]
 global force_mode_payload_set_active = False
-global force_mode_payload_set_curr_force = 0.0
-global force_mode_payload_set_rate_of_change_of_force = 1000.0
 global force_mode_payload_set_max_force = 300.0
-global force_mode_payload_set_force_step = 0.0
 global ft_raw_wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global ft_raw_wrench_offset = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global ft_compensated = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -108,6 +106,10 @@ global payload_estim_move_distance = 0.0
 global calc_cog = deafult_payload_cog
 global extra_mass = 0.0
 global mass_additional = 4.0
+global p_base_wrt_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global p_gravity_wrt_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global gravity_at_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global gravity_at_base = p[0.0, 0.0, -9.81, 0.0, 0.0, 0.0]
 
 # Global thread variables
 thread_move = 0
@@ -513,25 +515,22 @@ def set_payload_loop():
 end
 
 def force_mode_payload_loop():
-  force_mode_payload_set_force_step = force_mode_payload_set_rate_of_change_of_force * get_steptime()
-  
-  if force_mode_payload_set_curr_force < force_mode_payload_set_max_force:
-    force_mode_payload_set_curr_force = force_mode_payload_set_curr_force + force_mode_payload_set_force_step
-  else:
-    force_mode_payload_set_curr_force = force_mode_payload_set_max_force
-  end
-
   payload_estim_curr_pos = get_actual_tcp_pose()
-
-  payload_estim_pos_diff = [payload_estim_start_pos[0] - payload_estim_curr_pos[0], payload_estim_start_pos[1] - payload_estim_curr_pos[1], payload_estim_start_pos[2] - payload_estim_curr_pos[2]]
 
   ft_compensated = ft_raw_wrench - ft_raw_wrench_offset
 
-  if payload_estim_command_type == DP_TOP_LIFT or payload_estim_command_type == DP_FRONT_DRAG:
+  p_base_wrt_tcp = pose_inv(payload_estim_curr_pos)
+  p_gravity_wrt_tcp = pose_trans(p_base_wrt_tcp, gravity_at_base)
+  gravity_at_tcp = pose_sub(p_gravity_wrt_tcp, p_base_wrt_tcp)
+
+  current_raw_force = (ft_compensated[0] * gravity_at_tcp[0] + ft_compensated[1] * gravity_at_tcp[1] + ft_compensated[2] * gravity_at_tcp[2]) / norm([gravity_at_tcp[0], gravity_at_tcp[1], gravity_at_tcp[2]])
+
+  if payload_estim_command_type == DP_FRONT_DRAG:
     current_raw_force = ft_compensated[2]
-  elif payload_estim_command_type == DP_FRONT_LIFT:
-    current_raw_force = ft_compensated[1]
+  elif payload_estim_command_type == DP_TOP_DRAG:
+    current_raw_force = -1.0 * ft_compensated[1]
   end
+  
   if current_raw_force < 0.0:
     current_raw_force = 0.0
   end
@@ -545,6 +544,8 @@ def force_mode_payload_loop():
       calc_cog[2] = 0.5
     end
   end
+
+  payload_estim_pos_diff = [payload_estim_start_pos[0] - payload_estim_curr_pos[0], payload_estim_start_pos[1] - payload_estim_curr_pos[1], payload_estim_start_pos[2] - payload_estim_curr_pos[2]]
   
   if norm(payload_estim_pos_diff) > payload_estim_move_distance:
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
@@ -556,14 +557,16 @@ def force_mode_payload_loop():
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0:
-      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog) 
     end
     if payload_estim_command_type == DP_TOP_LIFT:
-      force_mode(payload_estim_curr_pos, [0, 0, 1, 1, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), (-1 * calc_cog[2] * current_raw_force * sin(d2r(20))), 0, 0], 2, [0.01, 0.01, 0.05, d2r(1.0), 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * (current_raw_force + 50)), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+    elif payload_estim_command_type == DP_TOP_DRAG:
+      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, (current_raw_force + 50), 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_LIFT:
-      force_mode(payload_estim_curr_pos, [0, 1, 0, 0, 0, 0], [0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 1, 1, 0, 0, 0], [0, (-1.0 * (current_raw_force + 50)), (-1.0 * (current_raw_force + 50)), 0, 0, 0], 2, [0.01, 0.05, 0.03, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_DRAG:
-      force_mode(payload_estim_curr_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_mode_payload_set_max_force), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * (current_raw_force + 50)), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
     end
   end
 end
@@ -607,14 +610,14 @@ thread script_commands():
         tool_contact_running = False
       elif command == SET_GRAVITY:
         gravity = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate]
+        gravity_at_base = p[-1.0 * gravity[0], -1.0 * gravity[1], -1.0 * gravity[2], 0.0, 0.0, 0.0]
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
       elif command == SET_DYNAMIC_PAYLOAD:
-        textmsg("Received dynamic payload estimation command with command type: ", payload_estim_command_type)
         payload_estim_command_type = raw_command[2]
         payload_estim_move_distance = raw_command[3] / MULT_jointstate
-        force_mode_payload_set_curr_force = 0.0
         payload_estim_start_pos = get_actual_tcp_pose()
+        textmsg("Received dynamic payload estimation command with command type: ", payload_estim_command_type)
         force_mode_payload_set_active = True
       end
     end

@@ -64,6 +64,7 @@ enum class PayloadEstimType : int32_t
   TOP_LIFT = 0,
   FRONT_LIFT = 1,
   FRONT_DRAG = 2,
+  TOP_DRAG = 3,
 };
 
 /*!
