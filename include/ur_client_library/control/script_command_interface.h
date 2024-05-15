@@ -179,7 +179,7 @@ public:
    * 
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool startPayloadEstimation(PayloadEstimType command_type, double move_distance);
+  bool startPayloadEstimation(PayloadEstimType command_type, double move_distance, double secondary_move_distance);
 
   /*!
    * \brief  Returns whether a client/robot is connected to this server.

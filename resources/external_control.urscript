@@ -104,6 +104,7 @@ global payload_estim_curr_pos = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_pos_diff = [0.0, 0.0, 0.0]
 global payload_estim_command_type = -1
 global payload_estim_move_distance = 0.0
+global payload_estim_secondary_move_distance = 0.0
 global calc_cog = deafult_payload_cog
 global extra_mass = 0.0
 global mass_additional = 4.0
@@ -111,6 +112,10 @@ global p_base_wrt_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global p_gravity_wrt_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global gravity_at_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global gravity_at_base = p[0.0, 0.0, -9.81, 0.0, 0.0, 0.0]
+global top_lift_in_progress = False
+global complaint_axes = [0, 0, 0, 0, 0, 0]
+global force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global force_mode_limits = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 # Global thread variables
 thread_move = 0
@@ -548,17 +553,17 @@ def force_mode_payload_loop():
 
   payload_estim_pos_diff = [payload_estim_start_pos[0] - payload_estim_curr_pos[0], payload_estim_start_pos[1] - payload_estim_curr_pos[1], payload_estim_start_pos[2] - payload_estim_curr_pos[2]]
   
-  if norm(payload_estim_pos_diff) > payload_estim_move_distance:
+  if norm(payload_estim_pos_diff) > norm([payload_estim_move_distance, payload_estim_secondary_move_distance]):
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
     end_force_mode()
     if payload_estim_command_type == DP_FRONT_DRAG:
-      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 1.5, calc_cog)
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 1.0, calc_cog)
     end
     socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0:
-      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog) 
+      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
     end
     force_to_apply = (current_raw_force + 50)
     if force_to_apply > force_mode_payload_set_max_force:
@@ -569,7 +574,33 @@ def force_mode_payload_loop():
     elif payload_estim_command_type == DP_TOP_DRAG:
       force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_LIFT:
-      force_mode(payload_estim_start_pos, [0, 1, 1, 0, 0, 0], [0, (-1.0 * force_to_apply), (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.05, 0.03, 0.785, 0.785, 0.785])
+      complaint_axes = [0, 0, 0, 0, 0, 0]
+      force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      force_mode_limits = [0.01, 0.01, 0.01, 0.785, 0.785, 0.785]
+      top_lift_in_progress = False
+      if norm(payload_estim_pos_diff[1]) < payload_estim_move_distance:  # if lifting is incomplete
+        complaint_axes[1] = 1
+        force_vector[1] = -1.0 * force_to_apply
+        force_mode_limits[1] = 0.05  # lift speed
+        top_lift_in_progress = True
+      end
+      if norm(payload_estim_pos_diff[2]) < payload_estim_secondary_move_distance:  # if pulling is incomplete
+        complaint_axes[2] = 1
+        force_vector[2] = -1.0 * force_to_apply
+        force_mode_limits[2] = 0.03  # pull speed
+        top_lift_in_progress = True
+      end
+      
+      
+      if top_lift_in_progress == True:
+        force_mode(payload_estim_start_pos, complaint_axes, force_vector, 2, force_mode_limits)
+      else:
+        textmsg("Stopping top lift payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
+        end_force_mode()
+        socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+        force_mode_payload_set_active = False
+      end
+
     elif payload_estim_command_type == DP_FRONT_DRAG:
       force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
     end
@@ -621,6 +652,7 @@ thread script_commands():
       elif command == SET_DYNAMIC_PAYLOAD:
         payload_estim_command_type = raw_command[2]
         payload_estim_move_distance = raw_command[3] / MULT_jointstate
+        payload_estim_secondary_move_distance = raw_command[4] / MULT_jointstate
         payload_estim_start_pos = get_actual_tcp_pose()
         textmsg("Received dynamic payload estimation command with command type: ", payload_estim_command_type)
         force_mode_payload_set_active = True

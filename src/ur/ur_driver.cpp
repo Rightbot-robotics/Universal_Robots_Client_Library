@@ -734,7 +734,7 @@ void UrDriver::tryReconnectScriptCommandInterface()
   }
 }
 
-bool UrDriver::startPayloadEstimation(control::PayloadEstimType command_type, double move_distance)
+bool UrDriver::startPayloadEstimation(control::PayloadEstimType command_type, double move_distance, double secondary_move_distance)
 {
   if (getVersion().major < 5)
   {
@@ -753,7 +753,7 @@ bool UrDriver::startPayloadEstimation(control::PayloadEstimType command_type, do
 
   if (script_command_interface_->clientConnected())
   {
-    return script_command_interface_->startPayloadEstimation(command_type, move_distance);
+    return script_command_interface_->startPayloadEstimation(command_type, move_distance, secondary_move_distance);
   }
   else
   {
