@@ -100,8 +100,10 @@ global current_raw_force = 0.0
 global current_raw_torque = 0.0
 global force_to_apply = 0.0
 global payload_estim_start_pos = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global payload_estim_start_pos_inv = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_curr_pos = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_pos_diff = [0.0, 0.0, 0.0]
+global eff_pose_diff = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_command_type = -1
 global payload_estim_move_distance = 0.0
 global payload_estim_secondary_move_distance = 0.0
@@ -551,7 +553,8 @@ def force_mode_payload_loop():
     end
   end
 
-  payload_estim_pos_diff = [payload_estim_start_pos[0] - payload_estim_curr_pos[0], payload_estim_start_pos[1] - payload_estim_curr_pos[1], payload_estim_start_pos[2] - payload_estim_curr_pos[2]]
+  eff_pose_diff = pose_trans(payload_estim_start_pos_inv, payload_estim_curr_pos)
+  payload_estim_pos_diff = [eff_pose_diff[0], eff_pose_diff[1], eff_pose_diff[2]]
   
   if norm(payload_estim_pos_diff) > norm([payload_estim_move_distance, payload_estim_secondary_move_distance]):
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
@@ -654,6 +657,7 @@ thread script_commands():
         payload_estim_move_distance = raw_command[3] / MULT_jointstate
         payload_estim_secondary_move_distance = raw_command[4] / MULT_jointstate
         payload_estim_start_pos = get_actual_tcp_pose()
+        payload_estim_start_pos_inv = pose_inv(payload_estim_start_pos)
         textmsg("Received dynamic payload estimation command with command type: ", payload_estim_command_type)
         force_mode_payload_set_active = True
       end
