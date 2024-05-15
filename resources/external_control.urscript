@@ -25,6 +25,7 @@ MODE_SPEEDL = 4
 MODE_POSE = 5
 MODE_FREEDRIVE = 6
 MODE_TOOL_IN_CONTACT = 7
+PAYLOAD_ESTIMATION = 8
 # Data dimensions of the message received on the reverse interface
 REVERSE_INTERFACE_DATA_DIMENSION = 8
 
@@ -107,6 +108,7 @@ global eff_pose_diff = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_command_type = -1
 global payload_estim_move_distance = 0.0
 global payload_estim_secondary_move_distance = 0.0
+global payload_estim_move_speed = 0.05
 global calc_cog = deafult_payload_cog
 global extra_mass = 0.0
 global mass_additional = 4.0
@@ -559,6 +561,7 @@ def force_mode_payload_loop():
   if norm(payload_estim_pos_diff) > norm([payload_estim_move_distance, payload_estim_secondary_move_distance]):
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
     end_force_mode()
+    stopj(STOPJ_ACCELERATION)
     if payload_estim_command_type == DP_FRONT_DRAG:
       set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 1.0, calc_cog)
     end
@@ -573,9 +576,9 @@ def force_mode_payload_loop():
       force_to_apply = force_mode_payload_set_max_force
     end
     if payload_estim_command_type == DP_TOP_LIFT:
-      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, payload_estim_move_speed, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_TOP_DRAG:
-      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.01, 0.05, 0.01, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.01, payload_estim_move_speed, 0.01, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_LIFT:
       complaint_axes = [0, 0, 0, 0, 0, 0]
       force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -584,13 +587,13 @@ def force_mode_payload_loop():
       if norm(payload_estim_pos_diff[1]) < payload_estim_move_distance:  # if lifting is incomplete
         complaint_axes[1] = 1
         force_vector[1] = -1.0 * force_to_apply
-        force_mode_limits[1] = 0.05  # lift speed
+        force_mode_limits[1] = payload_estim_move_speed * (payload_estim_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance]))  # lift speed
         top_lift_in_progress = True
       end
       if norm(payload_estim_pos_diff[2]) < payload_estim_secondary_move_distance:  # if pulling is incomplete
         complaint_axes[2] = 1
         force_vector[2] = -1.0 * force_to_apply
-        force_mode_limits[2] = 0.03  # pull speed
+        force_mode_limits[2] = payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance]))  # pull speed
         top_lift_in_progress = True
       end
       
@@ -605,7 +608,7 @@ def force_mode_payload_loop():
       end
 
     elif payload_estim_command_type == DP_FRONT_DRAG:
-      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, payload_estim_move_speed, 0.785, 0.785, 0.785])
     end
   end
 end
@@ -653,12 +656,19 @@ thread script_commands():
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
       elif command == SET_DYNAMIC_PAYLOAD:
+        control_mode = PAYLOAD_ESTIMATION
         payload_estim_command_type = raw_command[2]
         payload_estim_move_distance = raw_command[3] / MULT_jointstate
         payload_estim_secondary_move_distance = raw_command[4] / MULT_jointstate
+        payload_estim_move_speed = raw_command[5] / MULT_jointstate
         payload_estim_start_pos = get_actual_tcp_pose()
         payload_estim_start_pos_inv = pose_inv(payload_estim_start_pos)
         textmsg("Received dynamic payload estimation command with command type: ", payload_estim_command_type)
+        textmsg("Received dynamic payload estimation command with move distance: ", payload_estim_move_distance)
+        textmsg("Received dynamic payload estimation command with secondary move distance: ", payload_estim_secondary_move_distance)
+        textmsg("Received dynamic payload estimation command with move speed: ", payload_estim_move_speed)
+        textmsg("Move speed: ", payload_estim_move_speed * (payload_estim_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
+        textmsg("Secondary move speed: ", payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
         force_mode_payload_set_active = True
       end
     end
@@ -709,6 +719,11 @@ while control_mode > MODE_STOPPED:
       if control_mode == MODE_TOOL_IN_CONTACT:
         if tool_contact_running == False:
           control_mode = params_mult[REVERSE_INTERFACE_DATA_DIMENSION]
+        end
+      elif control_mode == PAYLOAD_ESTIMATION:
+        if force_mode_payload_set_active == False:
+          control_mode = params_mult[REVERSE_INTERFACE_DATA_DIMENSION]
+          join thread_move
         end
       else:
         control_mode = params_mult[REVERSE_INTERFACE_DATA_DIMENSION]
@@ -769,6 +784,7 @@ while control_mode > MODE_STOPPED:
     end
 
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
+    ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
     if force_mode_payload_set_active == True:
       force_mode_payload_loop()
     end

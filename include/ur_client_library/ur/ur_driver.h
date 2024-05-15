@@ -400,7 +400,7 @@ public:
    * 
    * \returns True, if the write was performed successfully, false otherwise.
    */
-  bool startPayloadEstimation(control::PayloadEstimType command_type, double move_distance, double secondary_move_distance);
+  bool startPayloadEstimation(control::PayloadEstimType command_type, double move_distance, double secondary_move_distance, double move_speed);
 
   /*!
    * \brief Set the payload estimation result callback

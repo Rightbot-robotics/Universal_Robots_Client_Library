@@ -305,9 +305,9 @@ void ScriptCommandInterface::messageCallback(const int filedescriptor, char* buf
   }
 }
 
-bool ScriptCommandInterface::startPayloadEstimation(PayloadEstimType command_type, double move_distance, double secondary_move_distance)
+bool ScriptCommandInterface::startPayloadEstimation(PayloadEstimType command_type, double move_distance, double secondary_move_distance, double move_speed)
 {
-  const int message_length = 4;
+  const int message_length = 5;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
   int32_t val = htobe32(toUnderlying(ScriptCommand::SET_DYNAMIC_PAYLOAD));
@@ -320,6 +320,9 @@ bool ScriptCommandInterface::startPayloadEstimation(PayloadEstimType command_typ
   b_pos += append(b_pos, val);
 
   val = htobe32(static_cast<int32_t>(round(secondary_move_distance * MULT_JOINTSTATE)));
+  b_pos += append(b_pos, val);
+
+  val = htobe32(static_cast<int32_t>(round(move_speed * MULT_JOINTSTATE)));
   b_pos += append(b_pos, val);
 
   // writing zeros to allow usage with other script commands
