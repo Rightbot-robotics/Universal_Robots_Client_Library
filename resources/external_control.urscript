@@ -563,7 +563,7 @@ def force_mode_payload_loop():
   payload_estim_pos_diff = [eff_pose_diff[0], eff_pose_diff[1], eff_pose_diff[2]]
 
   if is_releasing_press == True:
-    force_mode(payload_estim_start_pos, [1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0], 2, [0.05, 0.05, 0.05, d2r(1.0), d2r(1.0), d2r(1.0)])
+    force_mode(payload_estim_start_pos, [1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0], 2, [0.05, 0.05, 0.05, d2r(45.0), d2r(45.0), d2r(45.0)])
     if norm([ft_compensated[1], ft_compensated[2], ft_compensated[3]]) < 10.0:
       payload_estim_start_pos = payload_estim_curr_pos
       payload_estim_start_pos_inv = pose_inv(payload_estim_start_pos)
