@@ -121,6 +121,7 @@ global complaint_axes = [0, 0, 0, 0, 0, 0]
 global force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global force_mode_limits = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global min_estim_distance = 0.01
+global started_setting_payload = False
 
 # Global thread variables
 thread_move = 0
@@ -572,6 +573,10 @@ def force_mode_payload_loop():
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0 and norm(payload_estim_pos_diff) > min_estim_distance:
+      if started_setting_payload == False:
+        textmsg("Started setting the payload value, current tcp movement: ", norm(payload_estim_pos_diff))
+        started_setting_payload = True
+      end
       set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
     end
     force_to_apply = (current_raw_force + 50)
@@ -672,6 +677,7 @@ thread script_commands():
         textmsg("Received dynamic payload estimation command with move speed: ", payload_estim_move_speed)
         textmsg("Move speed: ", payload_estim_move_speed * (payload_estim_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
         textmsg("Secondary move speed: ", payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
+        started_setting_payload = False
         force_mode_payload_set_active = True
       end
     end
