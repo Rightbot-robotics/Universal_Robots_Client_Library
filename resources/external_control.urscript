@@ -120,6 +120,7 @@ global top_lift_in_progress = False
 global complaint_axes = [0, 0, 0, 0, 0, 0]
 global force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global force_mode_limits = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global min_estim_distance = 0.01
 
 # Global thread variables
 thread_move = 0
@@ -570,7 +571,7 @@ def force_mode_payload_loop():
     socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
     force_mode_payload_set_active = False
   else:
-    if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0:
+    if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0 and norm(payload_estim_pos_diff) > min_estim_distance:
       set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
     end
     force_to_apply = (current_raw_force + 50)
