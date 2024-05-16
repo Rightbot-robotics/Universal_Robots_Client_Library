@@ -535,10 +535,12 @@ def force_mode_payload_loop():
 
   current_raw_force = (ft_compensated[0] * gravity_at_tcp[0] + ft_compensated[1] * gravity_at_tcp[1] + ft_compensated[2] * gravity_at_tcp[2]) / norm([gravity_at_tcp[0], gravity_at_tcp[1], gravity_at_tcp[2]])
 
-  if payload_estim_command_type == DP_FRONT_DRAG:
+  if payload_estim_command_type == DP_FRONT_DRAG or payload_estim_command_type == DP_TOP_LIFT:
     current_raw_force = ft_compensated[2]
   elif payload_estim_command_type == DP_TOP_DRAG:
     current_raw_force = -1.0 * ft_compensated[1]
+  elif payload_estim_command_type == DP_FRONT_LIFT:
+    current_raw_force = ft_compensated[1]
   end
   
   if current_raw_force < 0.0:
