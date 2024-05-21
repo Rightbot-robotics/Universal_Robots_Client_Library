@@ -120,7 +120,9 @@ global top_lift_in_progress = False
 global complaint_axes = [0, 0, 0, 0, 0, 0]
 global force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global force_mode_limits = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-global min_estim_distance = 0.01
+global min_estim_distance_front_lifting = 0.01
+global min_estim_distance_default = 0.0
+global min_estim_distance = 0.0
 global started_setting_payload = False
 
 # Global thread variables
@@ -561,6 +563,11 @@ def force_mode_payload_loop():
 
   eff_pose_diff = pose_trans(payload_estim_start_pos_inv, payload_estim_curr_pos)
   payload_estim_pos_diff = [eff_pose_diff[0], eff_pose_diff[1], eff_pose_diff[2]]
+  
+  min_estim_distance = min_estim_distance_default
+  if payload_estim_command_type == DP_FRONT_LIFT:
+    min_estim_distance = min_estim_distance_front_lifting
+  end
   
   if norm(payload_estim_pos_diff) > norm([payload_estim_move_distance, payload_estim_secondary_move_distance]):
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
