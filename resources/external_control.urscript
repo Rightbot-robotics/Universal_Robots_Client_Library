@@ -116,7 +116,7 @@ global p_base_wrt_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global p_gravity_wrt_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global gravity_at_tcp = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global gravity_at_base = p[0.0, 0.0, -9.81, 0.0, 0.0, 0.0]
-global top_lift_in_progress = False
+global lift_in_progress = False
 global complaint_axes = [0, 0, 0, 0, 0, 0]
 global force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global force_mode_limits = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -591,29 +591,53 @@ def force_mode_payload_loop():
       force_to_apply = force_mode_payload_set_max_force
     end
     if payload_estim_command_type == DP_TOP_LIFT:
-      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, payload_estim_move_speed, 0.785, 0.785, 0.785])
-    elif payload_estim_command_type == DP_TOP_DRAG:
-      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.01, payload_estim_move_speed, 0.01, 0.785, 0.785, 0.785])
-    elif payload_estim_command_type == DP_FRONT_LIFT:
+      
       complaint_axes = [0, 0, 0, 0, 0, 0]
       force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       force_mode_limits = [0.01, 0.01, 0.01, 0.785, 0.785, 0.785]
-      top_lift_in_progress = False
+      lift_in_progress = False
+      if norm(payload_estim_pos_diff[2]) < payload_estim_move_distance:  # if lifting is incomplete
+        complaint_axes[2] = 1
+        force_vector[2] = -1.0 * force_to_apply
+        force_mode_limits[2] = payload_estim_move_speed * (payload_estim_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance]))  # lift speed
+        lift_in_progress = True
+      end
+      if norm(payload_estim_pos_diff[1]) < payload_estim_secondary_move_distance:  # if pulling is incomplete
+        complaint_axes[1] = 1
+        force_vector[1] = force_to_apply
+        force_mode_limits[1] = payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance]))  # pull speed
+        lift_in_progress = True
+      end
+      if lift_in_progress == True:
+        force_mode(payload_estim_start_pos, complaint_axes, force_vector, 2, force_mode_limits)
+      else:
+        textmsg("Stopping top lift payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
+        end_force_mode()
+        socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+        force_mode_payload_set_active = False
+      end
+      
+    elif payload_estim_command_type == DP_TOP_DRAG:
+      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.01, payload_estim_move_speed, 0.01, 0.785, 0.785, 0.785])
+    elif payload_estim_command_type == DP_FRONT_LIFT:
+      
+      complaint_axes = [0, 0, 0, 0, 0, 0]
+      force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      force_mode_limits = [0.01, 0.01, 0.01, 0.785, 0.785, 0.785]
+      lift_in_progress = False
       if norm(payload_estim_pos_diff[1]) < payload_estim_move_distance:  # if lifting is incomplete
         complaint_axes[1] = 1
         force_vector[1] = -1.0 * force_to_apply
         force_mode_limits[1] = payload_estim_move_speed * (payload_estim_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance]))  # lift speed
-        top_lift_in_progress = True
+        lift_in_progress = True
       end
       if norm(payload_estim_pos_diff[2]) < payload_estim_secondary_move_distance:  # if pulling is incomplete
         complaint_axes[2] = 1
         force_vector[2] = -1.0 * force_to_apply
         force_mode_limits[2] = payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance]))  # pull speed
-        top_lift_in_progress = True
+        lift_in_progress = True
       end
-      
-      
-      if top_lift_in_progress == True:
+      if lift_in_progress == True:
         force_mode(payload_estim_start_pos, complaint_axes, force_vector, 2, force_mode_limits)
       else:
         textmsg("Stopping top lift payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
