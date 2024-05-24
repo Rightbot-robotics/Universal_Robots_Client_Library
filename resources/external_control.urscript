@@ -503,7 +503,7 @@ def tool_contact_detection():
     # Set control mode to tool in contact, should be cleared by stopping tool contact detection
     control_mode = MODE_TOOL_IN_CONTACT
     stopl(30)
-    force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0], 2, [0.01, 0.01, 0.05, 0.785, 0.785, 0.785])
+    force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0], 2, [0.1, 0.1, 0.05, 0.785, 0.785, 0.785])
 
     # Move to initial contact point
     # q = get_actual_joint_positions_history(step_back/2)
