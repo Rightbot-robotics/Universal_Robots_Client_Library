@@ -59,6 +59,7 @@ bool ScriptCommandInterface::zeroFTSensor()
 
 bool ScriptCommandInterface::setPayload(const double mass, const vector3d_t* cog)
 {
+  URCL_LOG_INFO("[ScriptCommandInterface] Setting payload to %f kg", mass);
   const int message_length = 5;
   uint8_t buffer[sizeof(int32_t) * MAX_MESSAGE_LENGTH];
   uint8_t* b_pos = buffer;
