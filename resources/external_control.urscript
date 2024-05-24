@@ -124,6 +124,7 @@ global min_estim_distance_front_lifting = 0.02
 global min_estim_distance_default = 0.0
 global min_estim_distance = 0.0
 global started_setting_payload = False
+global tool_contact_first_pass = False
 
 # Global thread variables
 thread_move = 0
@@ -484,6 +485,10 @@ def set_servo_pose(pose):
 end
 
 def tool_contact_detection():
+  if tool_contact_first_pass == True:
+    textmsg("Entered tool contact loop")
+    tool_contact_first_pass = False
+  end
   # Detect tool contact in the directions that the TCP is moving
   step_back = tool_contact(direction = [0, 0, 0, 0, 0, 0])
 
@@ -682,6 +687,7 @@ thread script_commands():
       elif command == END_FORCE_MODE:
         end_force_mode()
       elif command == START_TOOL_CONTACT:
+        tool_contact_first_pass = True
         tool_contact_running = True
         textmsg("Starting tool contact")
       elif command == END_TOOL_CONTACT:
