@@ -490,7 +490,7 @@ def tool_contact_detection():
     tool_contact_first_pass = False
   end
   # Detect tool contact in the directions that the TCP is moving
-  step_back = tool_contact(direction = [0, 0, 0, 0, 0, 0])
+  step_back = tool_contact(direction = p[0, 0, 0, 0, 0, 0])
 
   # If tool contact is detected stop movement and move back to intial contact point
   if step_back > 0:
