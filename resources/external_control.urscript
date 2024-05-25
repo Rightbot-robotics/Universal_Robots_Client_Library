@@ -511,6 +511,7 @@ def tool_contact_detection():
 
   if force() > tool_contact_force_threshold:
     textmsg("Tool contact by force. Force exceeded the threshold ", tool_contact_force_threshold)
+    textmsg("Detected force: ", force())
     step_back = 2
   end
 
