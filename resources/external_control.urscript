@@ -125,6 +125,8 @@ global min_estim_distance_default = 0.0
 global min_estim_distance = 0.0
 global started_setting_payload = False
 global tool_contact_first_pass = False
+global new_step_back = 0
+global tool_contact_force_threshold = 20.0
 
 # Global thread variables
 thread_move = 0
@@ -489,8 +491,28 @@ def tool_contact_detection():
     textmsg("Entered tool contact loop")
     tool_contact_first_pass = False
   end
-  # Detect tool contact in the directions that the TCP is moving
+  
   step_back = tool_contact(direction = p[0, 0, 0, 0, 0, 0])
+  if step_back > 0:
+    textmsg("Tool contact detected by checking contact on all direction")
+  end
+
+  new_step_back = tool_contact(direction = get_actual_tcp_speed())
+  if new_step_back > 0:
+    textmsg("Tool contact detected along tcp speed direction")
+    step_back = new_step_back
+  end
+
+  new_step_back = tool_contact()
+  if new_step_back > 0:
+    textmsg("Tool contact detection in tool_contact() function with no args")
+    step_back = new_step_back
+  end
+
+  if force() > tool_contact_force_threshold:
+    textmsg("Tool contact by force. Force exceeded the threshold ", tool_contact_force_threshold)
+    step_back = 2
+  end
 
   # If tool contact is detected stop movement and move back to intial contact point
   if step_back > 0:
