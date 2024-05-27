@@ -770,8 +770,9 @@ if is_initial_script == True:
   textmsg("ExternalControl: Running initial script")
 end
 global read_timeout = 0.0 # First read is blocking
+payload_estim_state = DP_STATE_INACTIVE
+write_output_integer_register(0, payload_estim_state)
 thread_script_commands = run script_commands()
-textmsg("Received double register value: ", read_input_float_register(24))
 while control_mode > MODE_STOPPED:
   enter_critical
   params_mult = socket_read_binary_integer(REVERSE_INTERFACE_DATA_DIMENSION, "reverse_socket", read_timeout)
@@ -862,14 +863,23 @@ while control_mode > MODE_STOPPED:
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
     ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
     if force_mode_payload_set_active == True:
-      write_output_integer_register(0, DP_STATE_ESTIMATING)
+      if payload_estim_state != DP_STATE_ESTIMATING:
+        payload_estim_state = DP_STATE_ESTIMATING
+        write_output_integer_register(0, payload_estim_state)
+      end
       force_mode_payload_loop()
     else:
       if payload_estim_success_state_active_count > 0:
-        write_output_integer_register(0, DP_STATE_ESTIMATION_COMPLETE)
+        if payload_estim_state != DP_STATE_ESTIMATION_COMPLETE:
+          payload_estim_state = DP_STATE_ESTIMATION_COMPLETE
+          write_output_integer_register(0, payload_estim_state)
+        end
         payload_estim_success_state_active_count = payload_estim_success_state_active_count - 1
       else:
-        write_output_integer_register(0, DP_STATE_INACTIVE)
+        if payload_estim_state != DP_STATE_INACTIVE:
+          payload_estim_state = DP_STATE_INACTIVE
+          write_output_integer_register(0, payload_estim_state)
+        end
       end
     end
     
