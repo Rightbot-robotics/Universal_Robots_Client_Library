@@ -515,9 +515,11 @@ def tool_contact_detection():
     step_back = new_step_back
   end
 
+  ft_compensated = ft_raw_wrench - ft_raw_wrench_offset
   if force() > tool_contact_force_threshold:
     textmsg("Tool contact by force. Force exceeded the threshold ", tool_contact_force_threshold)
     textmsg("Detected force: ", force())
+    textmsg("Detected force from custom method: ", norm([ft_compensated[0], ft_compensated[1], ft_compensated[2]]))
     step_back = 2
   end
 
@@ -692,8 +694,8 @@ thread script_commands():
     if raw_command[0] > 0:
       command = raw_command[1]
       if command == ZERO_FTSENSOR:
-        ft_raw_wrench_offset = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
         zero_ftsensor()
+        textmsg("Zeroed ft sensor.")
       elif command == SET_PAYLOAD:
         target_payload_mass = raw_command[2] / MULT_jointstate
         target_payload_cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
