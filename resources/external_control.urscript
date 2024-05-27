@@ -519,13 +519,13 @@ def tool_contact_detection():
   if force() > tool_contact_force_threshold:
     textmsg("Tool contact by force. Force exceeded the threshold ", tool_contact_force_threshold)
     textmsg("Detected force: ", force())
-    textmsg("Detected force from custom method: ", norm([ft_compensated[0], ft_compensated[1], ft_compensated[2]]))
     step_back = 2
   end
 
   # If tool contact is detected stop movement and move back to intial contact point
   if step_back > 0:
     textmsg("tool contact detected!")
+    textmsg("Detected force from custom method: ", norm([ft_compensated[0], ft_compensated[1], ft_compensated[2]]))
     if control_mode == MODE_FORWARD:
       kill thread_trajectory
       clear_remaining_trajectory_points()
