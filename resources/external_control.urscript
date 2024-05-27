@@ -56,6 +56,9 @@ DP_TOP_LIFT = 0
 DP_FRONT_LIFT = 1
 DP_FRONT_DRAG = 2
 DP_TOP_DRAG = 3
+DP_STATE_INACTIVE = 0
+DP_STATE_ESTIMATING = 1
+DP_STATE_ESTIMATION_COMPLETE = 2
 
 FREEDRIVE_MODE_START = 1
 FREEDRIVE_MODE_STOP = -1
@@ -127,6 +130,9 @@ global started_setting_payload = False
 global tool_contact_first_pass = False
 global new_step_back = 0
 global tool_contact_force_threshold = 20.0
+global payload_estim_state = DP_STATE_INACTIVE
+global payload_estim_success_state_active_time = 1.0
+global payload_estim_success_state_active_count = 0
 
 # Global thread variables
 thread_move = 0
@@ -602,10 +608,8 @@ def force_mode_payload_loop():
     textmsg("Stopping payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
     end_force_mode()
     stopj(STOPJ_ACCELERATION)
-    if payload_estim_command_type == DP_FRONT_DRAG:
-      set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)) * 1.0, calc_cog)
-    end
     socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+    payload_estim_success_state_active_count = payload_estim_success_state_active_time / get_steptime()
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0 and norm(payload_estim_pos_diff) > min_estim_distance:
@@ -858,7 +862,15 @@ while control_mode > MODE_STOPPED:
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
     ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
     if force_mode_payload_set_active == True:
+      write_output_integer_register(0, DP_STATE_ESTIMATING)
       force_mode_payload_loop()
+    else:
+      if payload_estim_success_state_active_count > 0:
+        write_output_integer_register(0, DP_STATE_ESTIMATION_COMPLETE)
+        payload_estim_success_state_active_count = payload_estim_success_state_active_count - 1
+      else:
+        write_output_integer_register(0, DP_STATE_INACTIVE)
+      end
     end
     
     register_payload_mass = read_input_float_register(24)
