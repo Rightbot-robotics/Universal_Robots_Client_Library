@@ -129,7 +129,7 @@ global min_estim_distance = 0.0
 global started_setting_payload = False
 global tool_contact_first_pass = False
 global new_step_back = 0
-global tool_contact_force_threshold = 20.0
+global tool_contact_force_threshold = 70.0
 global payload_estim_state = DP_STATE_INACTIVE
 global payload_estim_success_state_active_time = 1.0
 global payload_estim_success_state_active_count = 0
@@ -536,7 +536,7 @@ def tool_contact_detection():
 
     # Set control mode to tool in contact, should be cleared by stopping tool contact detection
     control_mode = MODE_TOOL_IN_CONTACT
-    stopl(30)
+    stopl(10)
     # force_mode(get_actual_tcp_pose(), [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0], 2, [0.1, 0.1, 0.05, 0.785, 0.785, 0.785])
 
     # Move to initial contact point
