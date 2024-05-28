@@ -410,6 +410,13 @@ public:
   void setPayloadEstimationResultCallback(std::function<void()> callback);
 
   /*!
+   * \brief Activate dynamic payload setting loop
+   *
+   * \param command_type  Specifies if the command is for activating or deactivating the box slip detection
+   */
+  bool setBoxSlipDetection(int32_t command_type);
+
+  /*!
    * \brief Write a keepalive signal only.
    *
    * This signals the robot that the connection is still

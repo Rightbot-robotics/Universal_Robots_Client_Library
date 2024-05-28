@@ -546,7 +546,7 @@ void UrDriver::setToolContactResultCallback(std::function<void(control::ToolCont
   }
   else
   {
-    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set tool contact callback.");
     return;
   }
 }
@@ -757,8 +757,26 @@ bool UrDriver::startPayloadEstimation(control::PayloadEstimType command_type, do
   }
   else
   {
-    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    URCL_LOG_ERROR("Script command interface is not running. Unable to call payload estimation.");
     return false;
+  }
+}
+
+bool UrDriver::setBoxSlipDetection(int32_t command_type)
+{
+  if (!script_command_interface_->clientConnected())
+  {
+    tryReconnectScriptCommandInterface();
+  }
+
+  if (script_command_interface_->clientConnected())
+  {
+    return script_command_interface_->setBoxSlipDetection(command_type);
+  }
+  else
+  {
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set box slip detection.");
+    return 0;
   }
 }
 
@@ -785,7 +803,7 @@ void UrDriver::setPayloadEstimationResultCallback(std::function<void()> callback
   }
   else
   {
-    URCL_LOG_ERROR("Script command interface is not running. Unable to end tool contact mode.");
+    URCL_LOG_ERROR("Script command interface is not running. Unable to set payload estimation callback.");
     return;
   }
 }

@@ -50,6 +50,7 @@ START_TOOL_CONTACT = 5
 END_TOOL_CONTACT = 6
 SET_GRAVITY = 7
 SET_DYNAMIC_PAYLOAD = 8
+SET_BOX_SLIP_DETECTION = 9
 SCRIPT_COMMAND_DATA_DIMENSION = 26
 
 DP_TOP_LIFT = 0
@@ -59,6 +60,10 @@ DP_TOP_DRAG = 3
 DP_STATE_INACTIVE = 0
 DP_STATE_ESTIMATING = 1
 DP_STATE_ESTIMATION_COMPLETE = 2
+
+
+DETECT_BOX_SLIP_ACTIVATE = 0
+DETECT_BOX_SLIP_DEACTIVATE = 1
 
 FREEDRIVE_MODE_START = 1
 FREEDRIVE_MODE_STOP = -1
@@ -133,6 +138,11 @@ global tool_contact_force_threshold = 70.0
 global payload_estim_state = DP_STATE_INACTIVE
 global payload_estim_success_state_active_time = 1.0
 global payload_estim_success_state_active_count = 0
+global detect_box_slip = False
+global joints_position_deviation = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global max_position_deviation =  0.0
+global idx = 0
+global trigger_position_deviation = 1.0
 
 # Global thread variables
 thread_move = 0
@@ -687,6 +697,29 @@ def force_mode_payload_loop():
   end
 end
 
+def box_slip_detection():
+  joints_position_deviation = get_target_joint_positions() - get_actual_joint_positions()
+  
+  max_position_deviation = 0.0
+  idx = 0
+  while idx < 6:
+    if norm(joints_position_deviation[idx]) > max_position_deviation:
+      max_position_deviation = norm(joints_position_deviation[idx])
+    end
+    idx = idx + 1
+  end
+
+  if max_position_deviation > trigger_position_deviation:
+    textmsg("Box slip detected. Max deviation: ", max_position_deviation)
+    textmsg("Commanding LOW signal to tool digital IO")
+    set_tool_digital_out(0, False)
+    set_tool_digital_out(1, False)
+    set_target_payload(deafult_payload_mass, deafult_payload_cog)
+    detect_box_slip = False
+    textmsg("Stopping box slip detection.")
+  end
+end
+
 # Thread to receive one shot script commands, the commands shouldn't be blocking
 thread script_commands():
   while control_mode > MODE_STOPPED:
@@ -748,6 +781,17 @@ thread script_commands():
         textmsg("Secondary move speed: ", payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
         started_setting_payload = False
         force_mode_payload_set_active = True
+      elif command == SET_BOX_SLIP_DETECTION:
+        textmsg("Setting box slip detection")
+        if raw_command[2] == DETECT_BOX_SLIP_ACTIVATE:
+          textmsg("Activated box slip detection")
+          detect_box_slip = True
+        elif raw_command[2] == DETECT_BOX_SLIP_DEACTIVATE:
+          textmsg("Deactivating box slip detection")
+          detect_box_slip = False
+        else:
+          textmsg("Unknown box slip detection command: ", raw_command[2])
+        end
       end
     end
   end
@@ -860,6 +904,10 @@ while control_mode > MODE_STOPPED:
     # Tool contact is running, but hasn't been detected
     if tool_contact_running == True and control_mode != MODE_TOOL_IN_CONTACT:
       tool_contact_detection()
+    end
+
+    if detect_box_slip == True:
+      box_slip_detection()
     end
 
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]

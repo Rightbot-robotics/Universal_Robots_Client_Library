@@ -182,6 +182,13 @@ public:
   bool startPayloadEstimation(PayloadEstimType command_type, double move_distance, double secondary_move_distance, double move_speed);
 
   /*!
+   * \brief Activate dynamic payload setting loop
+   *
+   * \param command_type  Specifies if the command is for activating or deactivating the box slip detection
+   */
+  bool setBoxSlipDetection(int32_t command_type);
+
+  /*!
    * \brief  Returns whether a client/robot is connected to this server.
    *
    */
@@ -229,7 +236,8 @@ private:
     START_TOOL_CONTACT = 5,  ///< Start detecting tool contact
     END_TOOL_CONTACT = 6,    ///< End detecting tool contact
     SET_GRAVITY = 7,         ///< Set gravity
-    SET_DYNAMIC_PAYLOAD = 8  ///< Set dynamic payload
+    SET_DYNAMIC_PAYLOAD = 8,  ///< Set dynamic payload
+    SET_BOX_SLIP_DETECTION = 9,  ///< Set box slip detection
   };
 
   bool client_connected_;
