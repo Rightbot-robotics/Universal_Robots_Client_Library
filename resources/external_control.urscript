@@ -128,13 +128,13 @@ global lift_in_progress = False
 global complaint_axes = [0, 0, 0, 0, 0, 0]
 global force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global force_mode_limits = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-global min_estim_distance_front_lifting = 0.02
+global min_estim_distance_front_lifting = 0.01
 global min_estim_distance_default = 0.0
 global min_estim_distance = 0.0
 global started_setting_payload = False
 global tool_contact_first_pass = False
 global new_step_back = 0
-global tool_contact_force_threshold = 70.0
+global tool_contact_force_threshold = 120.0
 global payload_estim_state = DP_STATE_INACTIVE
 global payload_estim_success_state_active_time = 1.0
 global payload_estim_success_state_active_count = 0
@@ -639,7 +639,7 @@ def force_mode_payload_loop():
       
       complaint_axes = [0, 0, 0, 0, 0, 0]
       force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      force_mode_limits = [0.01, 0.01, 0.01, 0.785, 0.785, 0.785]
+      force_mode_limits = [0.02, 0.02, 0.02, 0.785, 0.785, 0.785]
       lift_in_progress = False
       if norm(payload_estim_pos_diff[2]) < payload_estim_move_distance:  # if lifting is incomplete
         complaint_axes[2] = 1
@@ -663,12 +663,12 @@ def force_mode_payload_loop():
       end
       
     elif payload_estim_command_type == DP_TOP_DRAG:
-      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.01, payload_estim_move_speed, 0.01, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 1, 0, 0, 0, 0], [0, force_to_apply, 0, 0, 0, 0], 2, [0.02, payload_estim_move_speed, 0.02, 0.785, 0.785, 0.785])
     elif payload_estim_command_type == DP_FRONT_LIFT:
       
       complaint_axes = [0, 0, 0, 0, 0, 0]
       force_vector = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      force_mode_limits = [0.01, 0.01, 0.01, 0.785, 0.785, 0.785]
+      force_mode_limits = [0.02, 0.02, 0.02, 0.785, 0.785, 0.785]
       lift_in_progress = False
       if norm(payload_estim_pos_diff[1]) < payload_estim_move_distance:  # if lifting is incomplete
         complaint_axes[1] = 1
@@ -692,7 +692,7 @@ def force_mode_payload_loop():
       end
 
     elif payload_estim_command_type == DP_FRONT_DRAG:
-      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.01, 0.01, payload_estim_move_speed, 0.785, 0.785, 0.785])
+      force_mode(payload_estim_start_pos, [0, 0, 1, 0, 0, 0], [0, 0, (-1.0 * force_to_apply), 0, 0, 0], 2, [0.02, 0.02, payload_estim_move_speed, 0.785, 0.785, 0.785])
     end
   end
 end
