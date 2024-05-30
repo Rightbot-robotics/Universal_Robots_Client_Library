@@ -60,6 +60,7 @@ DP_TOP_DRAG = 3
 DP_STATE_INACTIVE = 0
 DP_STATE_ESTIMATING = 1
 DP_STATE_ESTIMATION_COMPLETE = 2
+DP_STATE_TCP_ZERO_VEL = 3
 
 
 DETECT_BOX_SLIP_ACTIVATE = 0
@@ -113,6 +114,8 @@ global payload_estim_start_pos_inv = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_curr_pos = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_pos_diff = [0.0, 0.0, 0.0]
 global eff_pose_diff = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global payload_estim_speed_check_counter = 0.0
+global curr_tcp_speed = p[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global payload_estim_command_type = -1
 global payload_estim_move_distance = 0.0
 global payload_estim_secondary_move_distance = 0.0
@@ -135,9 +138,9 @@ global started_setting_payload = False
 global tool_contact_first_pass = False
 global new_step_back = 0
 global tool_contact_force_threshold = 120.0
-global payload_estim_state = DP_STATE_INACTIVE
-global payload_estim_success_state_active_time = 1.0
-global payload_estim_success_state_active_count = 0
+global payload_estim_result = DP_STATE_INACTIVE
+global payload_estim_result_state_active_time = 1.0
+global payload_estim_result_state_active_count = 0
 global detect_box_slip = False
 global joints_position_deviation = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global max_position_deviation =  0.0
@@ -577,6 +580,24 @@ end
 
 def force_mode_payload_loop():
   payload_estim_curr_pos = get_actual_tcp_pose()
+  curr_tcp_speed = get_actual_tcp_speed()
+
+  if norm([curr_tcp_speed[0], curr_tcp_speed[1], curr_tcp_speed[2]]) < 0.01:
+    payload_estim_speed_check_counter = payload_estim_speed_check_counter + 1.0
+  else:
+    payload_estim_speed_check_counter = 0.0
+  end
+
+  if payload_estim_speed_check_counter > (1.0 / get_steptime()):
+    textmsg("The robot is not moving, stopping payload estimation")
+    end_force_mode()
+    stopj(STOPJ_ACCELERATION)
+    socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+    payload_estim_result_state_active_count = payload_estim_result_state_active_time / get_steptime()
+    payload_estim_result = DP_STATE_TCP_ZERO_VEL
+    force_mode_payload_set_active = False
+  end
+
 
   ft_compensated = ft_raw_wrench - ft_raw_wrench_offset
 
@@ -621,7 +642,8 @@ def force_mode_payload_loop():
     end_force_mode()
     stopj(STOPJ_ACCELERATION)
     socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
-    payload_estim_success_state_active_count = payload_estim_success_state_active_time / get_steptime()
+    payload_estim_result_state_active_count = payload_estim_result_state_active_time / get_steptime()
+    payload_estim_result = DP_STATE_ESTIMATION_COMPLETE
     force_mode_payload_set_active = False
   else:
     if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0 and norm(payload_estim_pos_diff) > min_estim_distance:
@@ -659,6 +681,8 @@ def force_mode_payload_loop():
         textmsg("Stopping top lift payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
         end_force_mode()
         socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+        payload_estim_result_state_active_count = payload_estim_result_state_active_time / get_steptime()
+        payload_estim_result = DP_STATE_ESTIMATION_COMPLETE
         force_mode_payload_set_active = False
       end
       
@@ -688,6 +712,8 @@ def force_mode_payload_loop():
         textmsg("Stopping top lift payload estimation loop. Gripper moved the payload estimation distance of ", norm(payload_estim_pos_diff))
         end_force_mode()
         socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
+        payload_estim_result_state_active_count = payload_estim_result_state_active_time / get_steptime()
+        payload_estim_result = DP_STATE_ESTIMATION_COMPLETE
         force_mode_payload_set_active = False
       end
 
@@ -780,6 +806,7 @@ thread script_commands():
         textmsg("Move speed: ", payload_estim_move_speed * (payload_estim_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
         textmsg("Secondary move speed: ", payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
         started_setting_payload = False
+        payload_estim_speed_check_counter = 0.0
         force_mode_payload_set_active = True
       elif command == SET_BOX_SLIP_DETECTION:
         textmsg("Setting box slip detection")
@@ -816,8 +843,6 @@ if is_initial_script == True:
   textmsg("ExternalControl: Running initial script")
 end
 global read_timeout = 0.0 # First read is blocking
-payload_estim_state = DP_STATE_INACTIVE
-write_output_integer_register(0, payload_estim_state)
 thread_script_commands = run script_commands()
 while control_mode > MODE_STOPPED:
   enter_critical
@@ -913,23 +938,14 @@ while control_mode > MODE_STOPPED:
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
     ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
     if force_mode_payload_set_active == True:
-      if payload_estim_state != DP_STATE_ESTIMATING:
-        payload_estim_state = DP_STATE_ESTIMATING
-        write_output_integer_register(0, payload_estim_state)
-      end
+      write_output_integer_register(0, DP_STATE_ESTIMATING)
       force_mode_payload_loop()
     else:
-      if payload_estim_success_state_active_count > 0:
-        if payload_estim_state != DP_STATE_ESTIMATION_COMPLETE:
-          payload_estim_state = DP_STATE_ESTIMATION_COMPLETE
-          write_output_integer_register(0, payload_estim_state)
-        end
-        payload_estim_success_state_active_count = payload_estim_success_state_active_count - 1
+      if payload_estim_result_state_active_count > 0:
+        write_output_integer_register(0, payload_estim_result)
+        payload_estim_result_state_active_count = payload_estim_result_state_active_count - 1
       else:
-        if payload_estim_state != DP_STATE_INACTIVE:
-          payload_estim_state = DP_STATE_INACTIVE
-          write_output_integer_register(0, payload_estim_state)
-        end
+        write_output_integer_register(0, DP_STATE_INACTIVE)
       end
     end
     
