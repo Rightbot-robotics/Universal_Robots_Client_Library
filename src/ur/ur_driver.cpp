@@ -487,6 +487,7 @@ bool UrDriver::startToolContact()
   if (!script_command_interface_->clientConnected())
   {
     tryReconnectScriptCommandInterface();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 
   if (script_command_interface_->clientConnected())
@@ -515,6 +516,7 @@ bool UrDriver::endToolContact()
   if (!script_command_interface_->clientConnected())
   {
     tryReconnectScriptCommandInterface();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 
   if (script_command_interface_->clientConnected())
@@ -689,7 +691,7 @@ void UrDriver::setKeepaliveCount(const uint32_t count)
 
 void UrDriver::tryReconnectScriptCommandInterface()
 {
-  int retry_count = 2;
+  int retry_count = 5;
   int curr_try = 0;
   double reconnection_wait_interval_sec = 0.5;
   
@@ -749,6 +751,7 @@ bool UrDriver::startPayloadEstimation(control::PayloadEstimType command_type, do
   if (!script_command_interface_->clientConnected())
   {
     tryReconnectScriptCommandInterface();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 
   if (script_command_interface_->clientConnected())
@@ -767,6 +770,7 @@ bool UrDriver::setBoxSlipDetection(int32_t command_type)
   if (!script_command_interface_->clientConnected())
   {
     tryReconnectScriptCommandInterface();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 
   if (script_command_interface_->clientConnected())
@@ -795,6 +799,7 @@ void UrDriver::setPayloadEstimationResultCallback(std::function<void()> callback
   if (!script_command_interface_->clientConnected())
   {
     tryReconnectScriptCommandInterface();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 
   if (script_command_interface_->clientConnected())
