@@ -138,6 +138,7 @@ global started_setting_payload = False
 global tool_contact_first_pass = False
 global new_step_back = 0
 global tool_contact_force_threshold = 120.0
+global tool_contact_deviation_threshold = 0.0028
 global payload_estim_result = DP_STATE_INACTIVE
 global payload_estim_result_state_active_time = 1.0
 global payload_estim_result_state_active_count = 0
@@ -535,6 +536,20 @@ def tool_contact_detection():
     step_back = 2
   end
 
+  joints_position_deviation = get_target_joint_positions() - get_actual_joint_positions()
+  max_position_deviation = 0.0
+  idx = 0
+  while idx < 6:
+    if norm(joints_position_deviation[idx]) > max_position_deviation:
+      max_position_deviation = norm(joints_position_deviation[idx])
+    end
+    idx = idx + 1
+  end
+  if max_position_deviation > tool_contact_deviation_threshold:
+    textmsg("Tool contact by position deviation. Current deviation: ", max_position_deviation)
+    step_back = 2
+  end
+
   # If tool contact is detected stop movement and move back to intial contact point
   if step_back > 0:
     textmsg("tool contact detected!")
@@ -563,6 +578,7 @@ end
 
 def set_payload_loop():
   if payload_loop_first_pass:
+    textmsg("Started payload setting loop")
     payload_value_step = (target_payload_mass - get_target_payload()) / (0.5 / get_steptime())
     payload_loop_first_pass = False
   end
@@ -740,7 +756,10 @@ def box_slip_detection():
     textmsg("Commanding LOW signal to tool digital IO")
     set_tool_digital_out(0, False)
     set_tool_digital_out(1, False)
-    set_target_payload(deafult_payload_mass, deafult_payload_cog)
+    target_payload_mass = deafult_payload_mass
+    target_payload_cog = deafult_payload_cog
+    payload_loop_first_pass = True
+    run_set_payload_loop = True
     detect_box_slip = False
     textmsg("Stopping box slip detection.")
   end
@@ -758,10 +777,10 @@ thread script_commands():
       elif command == SET_PAYLOAD:
         target_payload_mass = raw_command[2] / MULT_jointstate
         target_payload_cog = [raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate, raw_command[5] / MULT_jointstate]
-        # payload_loop_first_pass = True
-        # run_set_payload_loop = True
-        set_payload(target_payload_mass, target_payload_cog)
-        textmsg("Payload set successfully.")
+        payload_loop_first_pass = True
+        run_set_payload_loop = True
+        # set_payload(target_payload_mass, target_payload_cog)
+        # textmsg("Payload set successfully.")
       elif command == SET_TOOL_VOLTAGE:
         tool_voltage = raw_command[2] / MULT_jointstate
         set_tool_voltage(tool_voltage)
