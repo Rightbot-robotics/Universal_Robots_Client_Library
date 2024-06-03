@@ -149,6 +149,7 @@ global joints_position_deviation = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global max_position_deviation =  0.0
 global idx = 0
 global trigger_position_deviation = 0.0028
+global force_mode_payload_loop_first_pass = False
 
 # Global thread variables
 thread_move = 0
@@ -631,6 +632,15 @@ def force_mode_payload_loop():
 
   ft_compensated = ft_raw_wrench - ft_raw_wrench_offset + gripper_ft_offset - curr_gripper_ft
 
+  if force_mode_payload_loop_first_pass == True:
+    textmsg("Started payload compensation loop")
+    textmsg("Ft raw value: ", ft_raw_wrench)
+    textmsg("Ft raw offset value: ", ft_raw_wrench_offset)
+    textmsg("Gripper offset value: ", gripper_ft_offset)
+    textmsg("Gripper current value: ", curr_gripper_ft)
+    force_mode_payload_loop_first_pass = False
+  end
+
   current_raw_force = (ft_compensated[0] * gravity_at_tcp[0] + ft_compensated[1] * gravity_at_tcp[1] + ft_compensated[2] * gravity_at_tcp[2]) / norm([gravity_at_tcp[0], gravity_at_tcp[1], gravity_at_tcp[2]])
 
   if payload_estim_command_type == DP_FRONT_DRAG or payload_estim_command_type == DP_TOP_LIFT:
@@ -793,6 +803,11 @@ thread script_commands():
           deafult_payload_mass * gravity_at_tcp[1] * deafult_payload_cog[1],
           deafult_payload_mass * gravity_at_tcp[2] * deafult_payload_cog[2]
         ]
+        textmsg("Gravity at base: ", gravity_at_base)
+        textmsg("pose base wrt tcp: ", p_base_wrt_tcp)
+        textmsg("pose gravity wrt tcp: ", p_gravity_wrt_tcp)
+        textmsg("Gravity at tcp: ", gravity_at_tcp)
+        textmsg("Current gripper ft: ", curr_gripper_ft)
         write_output_float_register(5, curr_gripper_ft[0])
         write_output_float_register(6, curr_gripper_ft[1])
         write_output_float_register(7, curr_gripper_ft[2])
@@ -855,6 +870,7 @@ thread script_commands():
         textmsg("Secondary move speed: ", payload_estim_move_speed * (payload_estim_secondary_move_distance / norm([payload_estim_move_distance, payload_estim_secondary_move_distance])))
         started_setting_payload = False
         payload_estim_speed_check_counter = 0.0
+        force_mode_payload_loop_first_pass = True
         force_mode_payload_set_active = True
       elif command == SET_BOX_SLIP_DETECTION:
         textmsg("Setting box slip detection")
@@ -890,6 +906,9 @@ textmsg("ExternalControl: External control active...")
 if is_initial_script == True:
   textmsg("ExternalControl: Running initial script")
 end
+write_output_float_register(2, 0.0)
+write_output_float_register(3, 0.0)
+write_output_float_register(4, 9.81)
 global read_timeout = 0.0 # First read is blocking
 thread_script_commands = run script_commands()
 while control_mode > MODE_STOPPED:
