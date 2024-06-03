@@ -106,6 +106,8 @@ global force_mode_payload_set_max_force = 400.0
 global ft_raw_wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global ft_raw_wrench_offset = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global ft_compensated = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global curr_gripper_ft = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+global gripper_ft_offset = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global current_raw_force = 0.0
 global current_raw_torque = 0.0
 global force_to_apply = 0.0
@@ -615,11 +617,19 @@ def force_mode_payload_loop():
   end
 
 
-  ft_compensated = ft_raw_wrench - ft_raw_wrench_offset
-
   p_base_wrt_tcp = pose_inv(payload_estim_curr_pos)
   p_gravity_wrt_tcp = pose_trans(p_base_wrt_tcp, gravity_at_base)
   gravity_at_tcp = pose_sub(p_gravity_wrt_tcp, p_base_wrt_tcp)
+  curr_gripper_ft = [
+    deafult_payload_mass * gravity_at_tcp[0],
+    deafult_payload_mass * gravity_at_tcp[1],
+    deafult_payload_mass * gravity_at_tcp[2],
+    deafult_payload_mass * gravity_at_tcp[0] * deafult_payload_cog[0],
+    deafult_payload_mass * gravity_at_tcp[1] * deafult_payload_cog[1],
+    deafult_payload_mass * gravity_at_tcp[2] * deafult_payload_cog[2]
+  ]
+
+  ft_compensated = ft_raw_wrench - ft_raw_wrench_offset + gripper_ft_offset - curr_gripper_ft
 
   current_raw_force = (ft_compensated[0] * gravity_at_tcp[0] + ft_compensated[1] * gravity_at_tcp[1] + ft_compensated[2] * gravity_at_tcp[2]) / norm([gravity_at_tcp[0], gravity_at_tcp[1], gravity_at_tcp[2]])
 
@@ -772,6 +782,23 @@ thread script_commands():
     if raw_command[0] > 0:
       command = raw_command[1]
       if command == ZERO_FTSENSOR:
+        p_base_wrt_tcp = pose_inv(get_actual_tcp_pose())
+        p_gravity_wrt_tcp = pose_trans(p_base_wrt_tcp, gravity_at_base)
+        gravity_at_tcp = pose_sub(p_gravity_wrt_tcp, p_base_wrt_tcp)
+        curr_gripper_ft = [
+          deafult_payload_mass * gravity_at_tcp[0],
+          deafult_payload_mass * gravity_at_tcp[1],
+          deafult_payload_mass * gravity_at_tcp[2],
+          deafult_payload_mass * gravity_at_tcp[0] * deafult_payload_cog[0],
+          deafult_payload_mass * gravity_at_tcp[1] * deafult_payload_cog[1],
+          deafult_payload_mass * gravity_at_tcp[2] * deafult_payload_cog[2]
+        ]
+        write_output_float_register(5, curr_gripper_ft[0])
+        write_output_float_register(6, curr_gripper_ft[1])
+        write_output_float_register(7, curr_gripper_ft[2])
+        write_output_float_register(8, curr_gripper_ft[3])
+        write_output_float_register(9, curr_gripper_ft[4])
+        write_output_float_register(10, curr_gripper_ft[5])
         zero_ftsensor()
         textmsg("Zeroed ft sensor.")
       elif command == SET_PAYLOAD:
@@ -807,7 +834,9 @@ thread script_commands():
         tool_contact_running = False
       elif command == SET_GRAVITY:
         gravity = [raw_command[2] / MULT_jointstate, raw_command[3] / MULT_jointstate, raw_command[4] / MULT_jointstate]
-        gravity_at_base = p[-1.0 * gravity[0], -1.0 * gravity[1], -1.0 * gravity[2], 0.0, 0.0, 0.0]
+        write_output_float_register(2, gravity[0])
+        write_output_float_register(3, gravity[1])
+        write_output_float_register(4, gravity[2])
         set_gravity(gravity)
         textmsg("ExternalControl: Setting gravity: ", gravity)
       elif command == SET_DYNAMIC_PAYLOAD:
@@ -956,6 +985,8 @@ while control_mode > MODE_STOPPED:
 
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
     ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
+    gravity_at_base = p[-1 * read_output_float_register(2), -1 * read_output_float_register(3), -1 * read_output_float_register(4), 0.0, 0.0, 0.0]
+    gripper_ft_offset = [read_output_float_register(5), read_output_float_register(6), read_output_float_register(7), read_output_float_register(8), read_output_float_register(9), read_output_float_register(10)]
     if force_mode_payload_set_active == True:
       write_output_integer_register(0, DP_STATE_ESTIMATING)
       force_mode_payload_loop()
