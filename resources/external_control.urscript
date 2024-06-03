@@ -587,15 +587,20 @@ def set_payload_loop():
     payload_loop_first_pass = False
   end
 
-  new_payload = get_target_payload() + payload_value_step
-  if ((target_payload_mass - new_payload) * payload_value_step) > 0:
-    set_target_payload(new_payload, target_payload_cog)
-  else:
-    textmsg("Setting final payload of ", target_payload_mass)
-    set_target_payload(target_payload_mass, target_payload_cog)
-    textmsg("Final payload set.")
-    run_set_payload_loop = False
-  end
+  # new_payload = get_target_payload() + payload_value_step
+  # if ((target_payload_mass - new_payload) * payload_value_step) > 0:
+  #   set_target_payload(new_payload, target_payload_cog)
+  # else:
+  #   textmsg("Setting final payload of ", target_payload_mass)
+  #   set_target_payload(target_payload_mass, target_payload_cog)
+  #   textmsg("Final payload set.")
+  #   run_set_payload_loop = False
+  # end
+
+  textmsg("Setting final payload of ", target_payload_mass)
+  set_target_payload(target_payload_mass, target_payload_cog)
+  textmsg("Final payload set.")
+  run_set_payload_loop = False
 end
 
 def force_mode_payload_loop():
