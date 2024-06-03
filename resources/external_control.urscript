@@ -140,7 +140,7 @@ global started_setting_payload = False
 global tool_contact_first_pass = False
 global new_step_back = 0
 global tool_contact_force_threshold = 120.0
-global tool_contact_deviation_threshold = 0.0028
+global tool_contact_deviation_threshold = 0.002
 global payload_estim_result = DP_STATE_INACTIVE
 global payload_estim_result_state_active_time = 1.0
 global payload_estim_result_state_active_count = 0
@@ -557,6 +557,7 @@ def tool_contact_detection():
   if step_back > 0:
     textmsg("tool contact detected!")
     textmsg("Detected force from custom method: ", norm([ft_compensated[0], ft_compensated[1], ft_compensated[2]]))
+    textmsg("Last detected joint deviation: ", max_position_deviation)
     if control_mode == MODE_FORWARD:
       kill thread_trajectory
       clear_remaining_trajectory_points()
