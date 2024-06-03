@@ -583,7 +583,7 @@ end
 def set_payload_loop():
   if payload_loop_first_pass:
     textmsg("Started payload setting loop")
-    payload_value_step = (target_payload_mass - get_target_payload()) / (0.25 / get_steptime())
+    payload_value_step = (target_payload_mass - get_target_payload()) / (0.7 / get_steptime())
     payload_loop_first_pass = False
   end
 
