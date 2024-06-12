@@ -102,6 +102,7 @@ global deafult_payload_cog = [{{DEFAULT_PAYLOAD_COG_X_REPLACE}}, {{DEFAULT_PAYLO
 global register_payload_mass = 0.0
 global register_payload_cog = [0.0, 0.0, 0.0]
 global force_mode_payload_set_active = False
+global payload_estimation_thread_started = False
 global force_mode_payload_set_max_force = 400.0
 global ft_raw_wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 global ft_raw_wrench_offset = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -598,7 +599,7 @@ def set_payload_loop():
   end
 end
 
-def force_mode_payload_loop():
+thread force_mode_payload_loop():
   textmsg("Starting force mode payload estimation thread")
   while force_mode_payload_set_active:
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
@@ -617,7 +618,7 @@ def force_mode_payload_loop():
     if payload_estim_speed_check_counter > (1.0 / get_steptime()):
       textmsg("The robot is not moving, stopping payload estimation")
       end_force_mode()
-      stopj(STOPJ_ACCELERATION)
+      stopj(STOPJ_ACCELERATION * 0.5)
       socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
       payload_estim_result_state_active_count = payload_estim_result_state_active_time / get_steptime()
       payload_estim_result = DP_STATE_TCP_ZERO_VEL
@@ -948,11 +949,15 @@ while control_mode > MODE_STOPPED:
         end
       elif control_mode == PAYLOAD_ESTIMATION:
         if force_mode_payload_set_active == True:
-          join thread_move
-          thread_payload_estimation = run force_mode_payload_loop()
+          if payload_estimation_thread_started == False:
+            join thread_move
+            thread_payload_estimation = run force_mode_payload_loop()
+            payload_estimation_thread_started = True
+          end
         else:
           kill thread_payload_estimation
           join thread_payload_estimation
+          payload_estimation_thread_started = False
           control_mode = params_mult[REVERSE_INTERFACE_DATA_DIMENSION]
           join thread_move
         end
