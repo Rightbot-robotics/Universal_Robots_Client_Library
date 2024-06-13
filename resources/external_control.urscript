@@ -151,6 +151,8 @@ global max_position_deviation =  0.0
 global idx = 0
 global trigger_position_deviation = 0.0028
 global force_mode_payload_loop_first_pass = False
+global payload_setting_window = 50
+global mass_calc_history = make_list(0, struct(mass=0.0, cog=0.0), payload_setting_window)
 
 # Global thread variables
 thread_move = 0
@@ -599,13 +601,43 @@ def set_payload_loop():
   end
 end
 
+def record_payload_value(mass, cog):
+  local mid_index = 0
+  local start_index = 0
+  local end_index = mass_calc_history.length() - 1
+  local loop_break = False
+
+  while start_index <= end_index and loop_break == False:
+      mid_index = floor((start_index + end_index) / 2)
+      if mass < mass_calc_history[mid_index].mass:
+          end_index = mid_index - 1
+      elif mass > mass_calc_history[mid_index].mass:
+          start_index = mid_index + 1
+      else:
+          loop_break = True
+      end
+  end
+  if loop_break == False:
+      mid_index = start_index
+  end
+
+  mass_calc_history.insert(mid_index, struct(mass=mass, cog=cog))
+end
+
 thread force_mode_payload_loop():
   textmsg("Starting force mode payload estimation thread")
+  mass_calc_history = make_list(0, struct(mass=0.0, cog=0.0), payload_setting_window)
+  local loop_count = 0
+  local mass_to_set = 0.0
+  local cog_to_set = deafult_payload_cog
+  local median_index = 0
   while force_mode_payload_set_active:
+    loop_count = loop_count + 1
     ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
     ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
     gravity_at_base = p[-1 * read_output_float_register(2), -1 * read_output_float_register(3), -1 * read_output_float_register(4), 0.0, 0.0, 0.0]
     gripper_ft_offset = [read_output_float_register(5), read_output_float_register(6), read_output_float_register(7), read_output_float_register(8), read_output_float_register(9), read_output_float_register(10)]
+    
     payload_estim_curr_pos = get_actual_tcp_pose()
     curr_tcp_speed = get_actual_tcp_speed()
 
@@ -618,7 +650,7 @@ thread force_mode_payload_loop():
     if payload_estim_speed_check_counter > (1.0 / get_steptime()):
       textmsg("The robot is not moving, stopping payload estimation")
       end_force_mode()
-      stopj(STOPJ_ACCELERATION * 0.5)
+      stopj(STOPJ_ACCELERATION)
       socket_send_int(PAYLOAD_SET_EXECUTION_COMPLETE, "script_command_socket")
       payload_estim_result_state_active_count = payload_estim_result_state_active_time / get_steptime()
       payload_estim_result = DP_STATE_TCP_ZERO_VEL
@@ -673,6 +705,13 @@ thread force_mode_payload_loop():
       end
     end
 
+    record_payload_value((deafult_payload_mass + extra_mass), calc_cog[2])
+
+    if loop_count % payload_setting_window != 0:
+      continue
+    end
+    loop_count = 0
+
     eff_pose_diff = pose_trans(payload_estim_start_pos_inv, payload_estim_curr_pos)
     payload_estim_pos_diff = [eff_pose_diff[0], eff_pose_diff[1], eff_pose_diff[2]]
     
@@ -690,12 +729,16 @@ thread force_mode_payload_loop():
       payload_estim_result = DP_STATE_ESTIMATION_COMPLETE
       force_mode_payload_set_active = False
     else:
-      if norm(get_target_payload() - (deafult_payload_mass + extra_mass)) > 1.0 and norm(payload_estim_pos_diff) > min_estim_distance:
+      if norm(payload_estim_pos_diff) > min_estim_distance:
         if started_setting_payload == False:
           textmsg("Started setting the payload value, current tcp movement: ", norm(payload_estim_pos_diff))
           started_setting_payload = True
         end
-        set_target_payload((deafult_payload_mass + (current_raw_force / 9.81)), calc_cog)
+        median_index = floor(mass_calc_history.length() / 2)
+        mass_to_set = mass_calc_history[median_index].mass
+        cog_to_set[2] = mass_calc_history[median_index].cog
+        set_target_payload(mass_to_set, cog_to_set)
+        mass_calc_history.clear()
       end
       force_to_apply = (current_raw_force + 50)
       if force_to_apply > force_mode_payload_set_max_force:
