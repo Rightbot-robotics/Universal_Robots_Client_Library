@@ -705,12 +705,8 @@ thread force_mode_payload_loop():
       end
     end
 
-    if mass_calc_history.length() > 45:
-      textmsg("Payload list length: ", mass_calc_history.length())
-    end
-    record_payload_value((deafult_payload_mass + extra_mass), calc_cog[2])
-    if mass_calc_history.length() > 45:
-      textmsg("Inserted Payload list length: ", mass_calc_history.length())
+    if mass_calc_history.length() < 50:
+      record_payload_value((deafult_payload_mass + extra_mass), calc_cog[2])
     end
 
     if loop_count % payload_setting_window != 0:
