@@ -627,6 +627,7 @@ end
 thread force_mode_payload_loop():
   textmsg("Starting force mode payload estimation thread")
   mass_calc_history = make_list(0, struct(mass=0.0, cog=0.0), payload_setting_window)
+  mass_calc_history.clear()
   local loop_count = 0
   local mass_to_set = 0.0
   local cog_to_set = deafult_payload_cog
