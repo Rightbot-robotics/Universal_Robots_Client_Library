@@ -651,7 +651,7 @@ def set_payload_loop():
       mass_calc_history.clear()
     end
 
-    if set_payload_loop_count > 2000:
+    if set_payload_loop_count > 500:
       textmsg("Reached max payload setting loop count. Stopping.")
       textmsg("Setting default payload value")
       set_target_payload(deafult_payload_mass, deafult_payload_cog)
