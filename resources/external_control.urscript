@@ -153,6 +153,8 @@ global trigger_position_deviation = 0.0028
 global force_mode_payload_loop_first_pass = False
 global payload_setting_window = 50
 global mass_calc_history = make_list(0, struct(mass=0.0, cog=0.0), payload_setting_window)
+global set_payload_loop_count = 0
+global force_reading_based_payload_reset = False
 
 # Global thread variables
 thread_move = 0
@@ -588,17 +590,88 @@ def set_payload_loop():
     textmsg("Started payload setting loop")
     payload_value_step = (target_payload_mass - get_target_payload()) / (1.0 / get_steptime())
     payload_loop_first_pass = False
+    set_payload_loop_count = 1
+    mass_calc_history.clear()
   end
 
-  new_payload = get_target_payload() + payload_value_step
-  if ((target_payload_mass - new_payload) * payload_value_step) > 0:
-    set_target_payload(new_payload, target_payload_cog)
+  if force_reading_based_payload_reset == True:
+    ft_raw_wrench = [read_input_float_register(28), read_input_float_register(29), read_input_float_register(30), read_input_float_register(31), read_input_float_register(32), read_input_float_register(33)]
+    ft_raw_wrench_offset = [read_input_float_register(34), read_input_float_register(35), read_input_float_register(36), read_input_float_register(37), read_input_float_register(38), read_input_float_register(39)]
+    gravity_at_base = p[-1 * read_output_float_register(2), -1 * read_output_float_register(3), -1 * read_output_float_register(4), 0.0, 0.0, 0.0]
+    gripper_ft_offset = [read_output_float_register(5), read_output_float_register(6), read_output_float_register(7), read_output_float_register(8), read_output_float_register(9), read_output_float_register(10)]
+    
+    payload_estim_curr_pos = get_actual_tcp_pose()
+
+    p_base_wrt_tcp = pose_inv(payload_estim_curr_pos)
+    p_gravity_wrt_tcp = pose_trans(p_base_wrt_tcp, gravity_at_base)
+    gravity_at_tcp = pose_sub(p_gravity_wrt_tcp, p_base_wrt_tcp)
+    curr_gripper_ft = [
+      deafult_payload_mass * gravity_at_tcp[0],
+      deafult_payload_mass * gravity_at_tcp[1],
+      deafult_payload_mass * gravity_at_tcp[2],
+      deafult_payload_mass * gravity_at_tcp[0] * deafult_payload_cog[0],
+      deafult_payload_mass * gravity_at_tcp[1] * deafult_payload_cog[1],
+      deafult_payload_mass * gravity_at_tcp[2] * deafult_payload_cog[2]
+    ]
+
+    ft_compensated = ft_raw_wrench - ft_raw_wrench_offset + gripper_ft_offset - curr_gripper_ft
+
+    if payload_estim_command_type == DP_FRONT_DRAG or payload_estim_command_type == DP_TOP_LIFT:
+      current_raw_force = ft_compensated[2]
+    elif payload_estim_command_type == DP_TOP_DRAG:
+      current_raw_force = -1.0 * ft_compensated[1]
+    elif payload_estim_command_type == DP_FRONT_LIFT:
+      current_raw_force = ft_compensated[1]
+    end
+    
+    if current_raw_force < 0.0:
+      current_raw_force = 0.0
+    end
+
+    current_raw_torque = norm([ft_compensated[3], ft_compensated[4], ft_compensated[5]])
+
+    extra_mass = current_raw_force / 9.81
+    if current_raw_force > 0.0:
+      calc_cog[2] = (deafult_payload_mass * deafult_payload_cog[2] + extra_mass * (current_raw_torque / current_raw_force)) / (deafult_payload_mass + extra_mass)
+      if calc_cog[2] > 0.5:
+        calc_cog[2] = 0.5
+      end
+    end
+
+    if mass_calc_history.length() < 50:
+      record_payload_value((deafult_payload_mass + extra_mass), calc_cog[2])
+    end
+
+    if set_payload_loop_count % payload_setting_window == 0:
+      median_index = floor(mass_calc_history.length() / 2)
+      mass_to_set = mass_calc_history[median_index].mass
+      cog_to_set = deafult_payload_cog
+      cog_to_set[2] = mass_calc_history[median_index].cog
+      set_target_payload(mass_to_set, cog_to_set)
+      mass_calc_history.clear()
+    end
+
+    if set_payload_loop_count > 2000:
+      textmsg("Reached max payload setting loop count. Stopping.")
+      textmsg("Setting default payload value")
+      set_target_payload(deafult_payload_mass, deafult_payload_cog)
+      textmsg("Default payload set.")
+      run_set_payload_loop = False
+      force_reading_based_payload_reset = False
+    end
   else:
-    textmsg("Setting final payload of ", target_payload_mass)
-    set_target_payload(target_payload_mass, target_payload_cog)
-    textmsg("Final payload set.")
-    run_set_payload_loop = False
+    new_payload = get_target_payload() + payload_value_step
+    if ((target_payload_mass - new_payload) * payload_value_step) > 0:
+      set_target_payload(new_payload, target_payload_cog)
+    else:
+      textmsg("Setting final payload of ", target_payload_mass)
+      set_target_payload(target_payload_mass, target_payload_cog)
+      textmsg("Final payload set.")
+      run_set_payload_loop = False
+    end
   end
+
+  set_payload_loop_count = set_payload_loop_count + 1
 end
 
 def record_payload_value(mass, cog):
@@ -834,6 +907,7 @@ def box_slip_detection():
     textmsg("Commanding LOW signal to tool digital IO")
     set_tool_digital_out(0, False)
     set_tool_digital_out(1, False)
+    force_reading_based_payload_reset = True
     target_payload_mass = deafult_payload_mass
     target_payload_cog = deafult_payload_cog
     payload_loop_first_pass = True
