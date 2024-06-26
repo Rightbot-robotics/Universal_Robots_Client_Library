@@ -905,8 +905,8 @@ def box_slip_detection():
   if max_position_deviation > trigger_position_deviation:
     textmsg("Box slip detected. Max deviation: ", max_position_deviation)
     textmsg("Commanding LOW signal to tool digital IO")
-    set_tool_digital_out(0, False)
-    set_tool_digital_out(1, False)
+    # set_tool_digital_out(0, False)
+    # set_tool_digital_out(1, False)
     force_reading_based_payload_reset = True
     target_payload_mass = deafult_payload_mass
     target_payload_cog = deafult_payload_cog
