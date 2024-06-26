@@ -1012,6 +1012,7 @@ thread script_commands():
         elif raw_command[2] == DETECT_BOX_SLIP_DEACTIVATE:
           textmsg("Deactivating box slip detection")
           detect_box_slip = False
+          force_reading_based_payload_reset = False
         else:
           textmsg("Unknown box slip detection command: ", raw_command[2])
         end
