@@ -1017,6 +1017,7 @@ thread script_commands():
             run_set_payload_loop = False
             force_reading_based_payload_reset = False
             set_target_payload(deafult_payload_mass, deafult_payload_cog)
+          end
         else:
           textmsg("Unknown box slip detection command: ", raw_command[2])
         end
