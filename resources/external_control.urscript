@@ -902,7 +902,7 @@ def box_slip_detection():
     idx = idx + 1
   end
 
-  if max_position_deviation > trigger_position_deviation:
+  if max_position_deviation > trigger_position_deviation or True:
     textmsg("Box slip detected. Max deviation: ", max_position_deviation)
     textmsg("Commanding LOW signal to tool digital IO")
     # set_tool_digital_out(0, False)
