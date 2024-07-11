@@ -819,6 +819,7 @@ thread force_mode_payload_loop():
 end
 
 thread services_execution_thread():
+  textmsg("Starting services_execution_thread")
   while True:
 
     # Tool contact is running, but hasn't been detected
