@@ -636,6 +636,9 @@ rtde_interface::RTDEWriter& UrDriver::getRTDEWriter()
 
 bool UrDriver::sendScript(const std::string& program)
 {
+  secondary_stream_.reset(
+      new comm::URStream<primary_interface::PrimaryPackage>(robot_ip_, urcl::primary_interface::UR_SECONDARY_PORT));
+  secondary_stream_->connect();
   if (secondary_stream_ == nullptr)
   {
     throw std::runtime_error("Sending script to robot requested while there is no primary interface established. "
